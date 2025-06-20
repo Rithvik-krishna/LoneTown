@@ -53,5 +53,90 @@ router.post('/unpin', async (req, res) => {
   }
 });
 
+// routes/matchRoutes.js
+router.post('/find-match', async (req, res) => {
+  const { userId } = req.body;
+  const user = await User.findById(userId);
+  const candidates = await User.find({ _id: { $ne: userId }, state: 'available' });
+
+  let bestMatch = null;
+  let highestScore = 0;
+
+  for (const candidate of candidates) {
+    let score = 0;
+    if (candidate.loveLanguage === user.loveLanguage) score += 2;
+    if (candidate.attachmentStyle === user.attachmentStyle) score += 2;
+    if (candidate.communicationStyle === user.communicationStyle) score += 1;
+    if (
+      candidate.emotionalNeeds &&
+      user.emotionalNeeds &&
+      candidate.emotionalNeeds.includes(user.emotionalNeeds)
+    ) score += 2;
+
+    if (score > highestScore) {
+      highestScore = score;
+      bestMatch = candidate;
+    }
+  }
+
+  if (bestMatch) {
+    // mark both users as matched
+    user.state = 'pinned';
+    bestMatch.state = 'pinned';
+    await user.save();
+    await bestMatch.save();
+
+    res.json({ match: bestMatch });
+  } else {
+    res.json({ message: "No match found" });
+  }
+});
+
+
+// 🤖 Deep Compatibility Match Finder
+router.post('/find-match', async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const candidates = await User.find({ _id: { $ne: userId }, state: 'available' });
+
+    let bestMatch = null;
+    let highestScore = 0;
+
+    for (const candidate of candidates) {
+      let score = 0;
+      if (candidate.loveLanguage === user.loveLanguage) score += 2;
+      if (candidate.attachmentStyle === user.attachmentStyle) score += 2;
+      if (candidate.communicationStyle === user.communicationStyle) score += 1;
+      if (
+        candidate.emotionalNeeds &&
+        user.emotionalNeeds &&
+        candidate.emotionalNeeds.includes(user.emotionalNeeds)
+      ) score += 2;
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = candidate;
+      }
+    }
+
+    if (bestMatch) {
+      user.state = 'pinned';
+      bestMatch.state = 'pinned';
+      await user.save();
+      await bestMatch.save();
+
+      return res.json({ match: bestMatch });
+    }
+
+    res.status(200).json({ message: 'No match found' });
+  } catch (err) {
+    console.error('❌ Matchmaking error:', err.message);
+    res.status(500).json({ message: 'Matchmaking failed' });
+  }
+});
 
 module.exports = router;

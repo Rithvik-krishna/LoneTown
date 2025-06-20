@@ -14,27 +14,38 @@ export default function Onboarding({ user, setMatch }) {
   });
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    try {
-      const res = await axios.post(`/api/user/onboarding/${user._id}`, form);
+  try {
+    // Step 1: Submit onboarding form
+    const onboardingRes = await axios.post(`/api/user/onboarding/${user._id}`, form);
 
-      if (res.status === 200) {
-        alert('✅ Onboarding complete!');
+    if (onboardingRes.status === 200) {
+      alert('✅ Onboarding complete!');
 
-        // TEMP match logic
-        const matchName = user.name.toLowerCase() === 'arya' ? 'laya' : 'arya';
-        setMatch?.({ _id: 'debug-match', name: matchName });
+      // Step 2: Attempt to find a match
+      const matchRes = await axios.post('/api/match/find-match', {
+        userId: user._id,
+      });
 
+      if (matchRes.data.match) {
+        localStorage.setItem('match', JSON.stringify(matchRes.data.match)); // optional
+        alert(`✅ Match found with ${matchRes.data.match.name}`);
+        // Navigate to chat page (assuming App.jsx sets match from backend again)
         navigate('/app');
       } else {
-        alert('Something went wrong');
+        alert('⚠️ No match found yet. Try again later.');
+        navigate('/app'); // you can still take them to the chat screen
       }
-    } catch (err) {
-      console.error('Onboarding error:', err);
-      alert('Server error');
+    } else {
+      alert('Something went wrong during onboarding.');
     }
-  };
+  } catch (err) {
+    console.error('❌ Onboarding or Match Error:', err);
+    alert('Server error');
+  }
+};
+
 
   return (
     <form onSubmit={handleSubmit} className="max-w-md p-4 mx-auto mt-8 bg-white rounded-lg shadow">
