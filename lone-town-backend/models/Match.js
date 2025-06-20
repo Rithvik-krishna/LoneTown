@@ -7,6 +7,15 @@ const matchSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   messages: [{ text: String, timestamp: Date }],
   messageCount: { type: Number, default: 0 },
+  feedback: [
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rating: Number,
+    comment: String,
+    createdAt: Date,
+  },
+],
+
 });
 
 module.exports = mongoose.model("Match", matchSchema);

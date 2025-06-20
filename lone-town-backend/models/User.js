@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
   enum: ['available', 'matched', 'pinned', 'frozen'],
   default: 'available',
 },
+
 freezeUntil: Date, // optional for frozen state
 
    // 🧠 Onboarding traits
