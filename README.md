@@ -117,7 +117,7 @@ LoneTown/
 
 **Rithvik Krishna**  
 🌐 [GitHub](https://github.com/Rithvik-krishna)  
-📫 [Email](mailto:rithvik.personal.dev@gmail.com)
+📫 [Email](mailto:rithvikkrishnadk@gmail.com)
 
 ---
 
