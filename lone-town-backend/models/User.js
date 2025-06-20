@@ -11,10 +11,19 @@ const userSchema = new mongoose.Schema({
     lifestyle: String,
   },
   state: {
-    type: String,
-    enum: ["available", "matched", "frozen"],
-    default: "available",
-  },
+  type: String,
+  enum: ['available', 'matched', 'pinned', 'frozen'],
+  default: 'available',
+},
+freezeUntil: Date, // optional for frozen state
+
+   // 🧠 Onboarding traits
+  loveLanguage: String,
+  attachmentStyle: String,
+  communicationStyle: String,
+  emotionalNeeds: String,
+
+  
   currentMatch: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Match",

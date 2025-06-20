@@ -1,61 +1,78 @@
+// App.jsx
 import React, { useEffect, useState } from 'react';
-import MatchCard from './components/MatchCard';
-import ChatBox from './components/ChatBox';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Onboarding from './pages/Onboarding';
+import MainChatPage from './pages/MainChatPage';
 import socket from './socket';
-
-const userId = prompt("Enter user ID:");
-const dummyUser = {
-  _id: userId,
-  name: userId,
-};
+import axios from 'axios';
 
 export default function App() {
-  const [match, setMatch] = useState({
-    _id: 'match123',
-    name: 'Aarya',
-  });
-
+  const [user, setUser] = useState(null);
+  const [userState, setUserState] = useState('available');
+  const [match, setMatch] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
 
   useEffect(() => {
-    socket.emit('join', dummyUser._id);
+    const stored = localStorage.getItem('userId');
+    if (stored) {
+      const fetchUser = async () => {
+        try {
+          const res = await axios.get(`http://localhost:5000/api/user/${stored}`); // ✅ Full backend URL
+          setUser(res.data);
+          setUserState(res.data.state || 'available');
+          socket.emit('join', stored);
 
+          const matchName = res.data.name.toLowerCase() === 'arya' ? 'laya' : 'arya';
+          setMatch({ _id: 'debug-match', name: matchName });
+        } catch (err) {
+          console.error("User fetch failed:", err);
+        }
+      };
+      fetchUser();
+    }
+  }, []);
+
+  useEffect(() => {
     socket.on('receiveMessage', (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
-
-    return () => {
-      socket.off('receiveMessage');
-    };
+    return () => socket.off('receiveMessage');
   }, []);
 
   const sendMessage = () => {
-    if (!messageInput.trim()) return;
+    if (!messageInput.trim() || !user || !match) return;
 
-    socket.emit('sendMessage', {
+    const newMsg = {
       matchId: match._id,
-      senderId: dummyUser._id,
+      senderId: user._id,
       text: messageInput,
-    });
+    };
 
-    // Do NOT add to state directly — let socket handle it
+    socket.emit('sendMessage', newMsg);
     setMessageInput('');
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100">
-      <h1 className="mb-6 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
-
-      <MatchCard match={match} />
-
-      <ChatBox
-        messages={messages}
-        input={messageInput}
-        setInput={setMessageInput}
-        sendMessage={sendMessage}
-        currentUserId={dummyUser._id} // ✅ added
-      />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={!user ? <Login setUser={setUser} /> : <Navigate to="/onboarding" />} />
+        <Route path="/onboarding" element={<Onboarding user={user} setMatch={setMatch} />} />
+        <Route path="/app" element={user && match ? (
+          <MainChatPage
+            user={user}
+            userState={userState}
+            match={match}
+            messages={messages}
+            messageInput={messageInput}
+            setMessageInput={setMessageInput}
+            setUserState={setUserState}
+            sendMessage={sendMessage}
+          />
+        ) : <Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to={user ? "/app" : "/login"} />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

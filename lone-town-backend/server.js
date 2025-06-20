@@ -2,43 +2,48 @@ const express = require("express");
 const connectDB = require("./config/db");
 const cors = require("cors");
 require("dotenv").config();
+const matchRoutes = require('./routes/matchRoutes');
+const userRoutes = require('./routes/UserRoutes');
+const User = require('./models/User');
 
 const app = express();
 const http = require("http").createServer(app);
-const io = require("socket.io")(http, {
-  cors: { origin: "*" },
-});
+const { Server } = require("socket.io");
 
-// Connect to database
-connectDB();
-
+// ✅ Middlewares — MOVE THESE TO THE TOP
 app.use(cors());
 app.use(express.json());
 
-// Test API
+// ✅ Connect DB
+connectDB();
+
+// ✅ Load routes AFTER middleware
+app.use('/api/user', userRoutes);  
+app.use('/api/match', matchRoutes);
+
 app.get("/", (req, res) => {
-  res.send("Lone Town API Running");
+  res.send("Lone Town API Running ✅");
 });
 
-// --- Socket.io Chat Logic ---
+// ✅ Socket setup
+const io = new Server(http, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+
 io.on("connection", (socket) => {
   console.log("✅ New user connected:", socket.id);
 
-  // Optional: join room by user ID
   socket.on("join", (userId) => {
-    console.log(`🟢 User ${userId} joined`);
     socket.join(userId);
+    console.log(`🟢 User ${userId} joined room ${userId}`);
   });
 
-  // Listen for messages
   socket.on("sendMessage", (msg) => {
     console.log("📩 Message received:", msg);
-
-    // Emit message to all users (or use rooms for private logic)
     io.emit("receiveMessage", msg);
-
-    // Optional: emit only to the matched user’s room
-    // socket.to(matchPartnerRoomId).emit("receiveMessage", msg);
   });
 
   socket.on("disconnect", () => {
@@ -46,8 +51,32 @@ io.on("connection", (socket) => {
   });
 });
 
-// Server listen
+// 🔁 Auto-unfreeze users every 1 minute
+setInterval(async () => {
+  const now = new Date();
+
+  try {
+    const frozenUsers = await User.find({
+      state: "frozen",
+      freezeUntil: { $lte: now },
+    });
+
+    for (const user of frozenUsers) {
+      user.state = "available";
+      user.freezeUntil = null;
+      await user.save();
+    }
+
+    if (frozenUsers.length > 0) {
+      console.log("⏰ Unfroze", frozenUsers.length, "users");
+    }
+  } catch (err) {
+    console.error("Error unfreezing users:", err.message);
+  }
+}, 60 * 1000);
+
+// ✅ Start the server
 const PORT = process.env.PORT || 5000;
 http.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
