@@ -1,9 +1,9 @@
-// App.jsx
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import MainChatPage from './pages/MainChatPage';
+import WaitingRoom from './pages/WaitingRoom';
 import socket from './socket';
 import axios from 'axios';
 
@@ -13,44 +13,50 @@ export default function App() {
   const [match, setMatch] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('userId');
-    if (stored) {
-      const fetchUser = async () => {
-        try {
-          const res = await axios.get(`http://localhost:5000/api/user/${stored}`); // ✅ Full backend URL
-          setUser(res.data);
-          setUserState(res.data.state || 'available');
-          socket.emit('join', stored);
+    const storedUserId = localStorage.getItem('userId');
+    const matchId = localStorage.getItem('matchId');
+    const matchName = localStorage.getItem('matchName');
 
-          const matchName = res.data.name.toLowerCase() === 'arya' ? 'laya' : 'arya';
-          setMatch({ _id: 'debug-match', name: matchName });
-        } catch (err) {
-          console.error("User fetch failed:", err);
+    const fetchUserAndMatch = async () => {
+      try {
+        if (storedUserId) {
+          const res = await axios.get(`/api/user/${storedUserId}`);
+          setUser(res.data);
+          setUserState(res.data.state || "available");
+          socket.emit('join', storedUserId);
+
+          if (matchId && matchName) {
+            setMatch({ _id: matchId, name: matchName });
+          }
         }
-      };
-      fetchUser();
-    }
+      } catch (err) {
+        console.error('❌ Failed to fetch user:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserAndMatch();
   }, []);
 
   useEffect(() => {
     socket.on('receiveMessage', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages(prev => [...prev, msg]);
     });
     return () => socket.off('receiveMessage');
   }, []);
 
   const sendMessage = () => {
     if (!messageInput.trim() || !user || !match) return;
-
-    const newMsg = {
+    socket.emit('sendMessage', {
       matchId: match._id,
       senderId: user._id,
       text: messageInput,
-    };
-
-    socket.emit('sendMessage', newMsg);
+    });
+    setMessages(prev => [...prev, { senderId: user._id, text: messageInput }]);
     setMessageInput('');
   };
 
@@ -58,20 +64,25 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={!user ? <Login setUser={setUser} /> : <Navigate to="/onboarding" />} />
-        <Route path="/onboarding" element={<Onboarding user={user} setMatch={setMatch} />} />
-        <Route path="/app" element={user && match ? (
-          <MainChatPage
-            user={user}
-            userState={userState}
-            match={match}
-            messages={messages}
-            messageInput={messageInput}
-            setMessageInput={setMessageInput}
-            setUserState={setUserState}
-            sendMessage={sendMessage}
-          />
-        ) : <Navigate to="/login" />} />
-        <Route path="/" element={<Navigate to={user ? "/app" : "/login"} />} />
+        <Route path="/onboarding" element={user ? <Onboarding user={user} setMatch={setMatch} /> : <Navigate to="/login" />} />
+        <Route path="/waiting" element={user ? <WaitingRoom user={user} setMatch={setMatch} /> : <Navigate to="/login" />} />
+        <Route path="/app" element={
+          loading ? (
+            <div className="mt-20 text-center text-gray-600">Loading your experience...</div>
+          ) : user ? (
+            <MainChatPage
+              user={user}
+              userState={userState}
+              match={match}
+              messages={messages}
+              messageInput={messageInput}
+              setMessageInput={setMessageInput}
+              setUserState={setUserState}
+              sendMessage={sendMessage}
+            />
+          ) : <Navigate to="/login" />
+        } />
+        <Route path="*" element={<Navigate to={user ? "/app" : "/login"} />} />
       </Routes>
     </BrowserRouter>
   );

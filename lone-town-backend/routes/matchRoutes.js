@@ -163,6 +163,81 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
+// ✨ Compatibility Scoring Function
+function calculateCompatibility(u1, u2) {
+  let score = 0;
+  if (u1.loveLanguage === u2.loveLanguage) score += 1;
+  if (u1.attachmentStyle === u2.attachmentStyle) score += 1;
+  if (u1.communicationStyle === u2.communicationStyle) score += 1;
+  if (
+    u1.emotionalNeeds &&
+    u2.emotionalNeeds &&
+    u1.emotionalNeeds.toLowerCase().includes(u2.emotionalNeeds.toLowerCase())
+  ) {
+    score += 1;
+  }
+  return score; // Max 4
+}
 
+// 🧠 POST /api/match/find-match
+router.post("/find-match", async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Skip if user is already matched/pinned/frozen
+    if (user.state !== "available") {
+      return res.status(400).json({ message: "User not available for match" });
+    }
+
+    const allAvailable = await User.find({
+      _id: { $ne: userId },
+      state: "available",
+      gender: { $ne: user.gender }, // optional filter for opposite gender
+    });
+
+    let bestMatch = null;
+    let bestScore = -1;
+
+    for (const candidate of allAvailable) {
+      const score = calculateCompatibility(user, candidate);
+      if (score > bestScore) {
+        bestMatch = candidate;
+        bestScore = score;
+      }
+    }
+
+    if (!bestMatch) {
+      return res.status(200).json({ message: "No compatible match found" });
+    }
+
+    // ✅ Save the match
+    const newMatch = await Match.create({
+      users: [userId, bestMatch._id],
+    });
+
+    // Update both users
+    await User.findByIdAndUpdate(userId, {
+      currentMatch: newMatch._id,
+      state: "matched",
+    });
+    await User.findByIdAndUpdate(bestMatch._id, {
+      currentMatch: newMatch._id,
+      state: "matched",
+    });
+
+    res.json({
+      match: {
+        _id: newMatch._id,
+        name: bestMatch.name,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Matchmaking Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
 
 module.exports = router;

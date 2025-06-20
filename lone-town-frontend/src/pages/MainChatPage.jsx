@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import MatchCard from '../components/MatchCard';
 import ChatBox from '../components/ChatBox';
-import MatchFeedback from '../components/MatchFeedback';
+import axios from 'axios';
 
 export default function MainChatPage({
   user,
@@ -13,12 +13,14 @@ export default function MainChatPage({
   messageInput,
   setMessageInput,
   sendMessage,
+  setMatch,
 }) {
   const [timeLeft, setTimeLeft] = useState('');
-  const [feedbackGiven, setFeedbackGiven] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     let interval;
+
     if (userState === 'frozen' && user?.freezeUntil) {
       interval = setInterval(() => {
         const now = new Date();
@@ -35,8 +37,28 @@ export default function MainChatPage({
         }
       }, 1000);
     }
+
     return () => clearInterval(interval);
   }, [userState, user?.freezeUntil]);
+
+  const retryMatch = async () => {
+    setIsLoading(true);
+    try {
+      const res = await axios.post('/api/match/find-match', { userId: user._id });
+      if (res.data?.match) {
+        setMatch(res.data.match);
+        localStorage.setItem('matchId', res.data.match._id);
+        localStorage.setItem('matchName', res.data.match.name);
+      } else {
+        alert('Still no match found. Please try again later.');
+      }
+    } catch (err) {
+      console.error('Retry match failed:', err);
+      alert('Error while retrying match.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen p-6 bg-gray-100">
@@ -44,7 +66,8 @@ export default function MainChatPage({
 
       {userState === 'frozen' && (
         <div className="p-3 mb-4 font-semibold text-center bg-yellow-100 rounded">
-          ❄️ You're in a 24-hour reflection period.<br />
+          ❄️ You're in a 24-hour reflection period.
+          <br />
           ⏳ <span className="font-bold">{timeLeft}</span>
         </div>
       )}
@@ -55,29 +78,34 @@ export default function MainChatPage({
         </div>
       )}
 
-      <MatchCard
-        match={match}
-        user={user}
-        userState={userState}
-        setUserState={setUserState}
-      />
-
-      <ChatBox
-        messages={messages}
-        input={messageInput}
-        setInput={setMessageInput}
-        sendMessage={sendMessage}
-        currentUserId={user._id}
-      />
-
-      {!feedbackGiven &&
-        (userState === 'frozen' || messages.length >= 100) && (
-          <MatchFeedback
-            userId={user._id}
-            matchId={match._id}
-            onSubmit={() => setFeedbackGiven(true)}
+      {/* 👤 If user has a match, show chat + match */}
+      {match ? (
+        <>
+          <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
+          <ChatBox
+            messages={messages}
+            input={messageInput}
+            setInput={setMessageInput}
+            sendMessage={sendMessage}
+            currentUserId={user._id}
           />
-        )}
+        </>
+      ) : (
+        // 💡 Match Waiting Room UI
+        <div className="p-6 mt-8 text-center bg-white border rounded-lg shadow-md">
+          <p className="mb-4 text-xl font-semibold text-gray-700">
+            ⏳ Looking for someone deeply compatible...
+          </p>
+          <p className="mb-4 text-gray-500">Our system is searching for the right match for you.</p>
+          <button
+            onClick={retryMatch}
+            disabled={isLoading}
+            className="px-6 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Searching...' : '🔁 Retry Match Now'}
+          </button>
+        </div>
+      )}
 
       <div className="mt-6 text-center">
         <button
