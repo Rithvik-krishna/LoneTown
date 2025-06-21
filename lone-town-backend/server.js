@@ -4,44 +4,39 @@ const cors = require("cors");
 require("dotenv").config();
 const matchRoutes = require('./routes/matchRoutes');
 const userRoutes = require('./routes/UserRoutes');
+const matchHistoryRoutes = require('./routes/matchHistoryRoutes');
 const User = require('./models/User');
 const Message = require('./models/Message');
 
 const app = express();
 const http = require("http").createServer(app);
 const { Server } = require("socket.io");
-const matchHistoryRoutes = require('./routes/matchHistoryRoutes');
-app.use('/api/match', matchHistoryRoutes);
+
+// ✅ Connect to MongoDB
+connectDB();
+
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
-
-// ✅ Connect DB
-connectDB();
 
 // ✅ API Routes
 app.use('/api/user', userRoutes);
 app.use('/api/match', matchRoutes);
+app.use('/api/match', matchHistoryRoutes);
 
-// ✅ Test Route
+// ✅ Health Check Route
 app.get("/", (req, res) => {
   res.send("Lone Town API Running ✅");
 });
 
-// ✅ Socket.io Setup
-// src/socket.js
-import { io } from "socket.io-client";
-
-// ✅ Points to Render backend (not Vercel!)
-const socket = io(import.meta.env.VITE_BACKEND_URL, {
-  transports: ['websocket'],
-  withCredentials: true,
+// ✅ Socket.IO Setup
+const io = new Server(http, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173", // ✅ update this to Vercel domain if needed
+    methods: ["GET", "POST"]
+  }
 });
 
-export default socket;
-
-
-
-// ✅ Single Socket Handler
 io.on("connection", (socket) => {
   console.log("✅ New user connected:", socket.id);
 
@@ -76,7 +71,7 @@ io.on("connection", (socket) => {
         await user.save();
       }
 
-      // 📡 Emit message to sender and receiver
+      // 📡 Send to both sender and receiver
       socket.emit("receiveMessage", newMessage);
       socket.to(msg.receiverId).emit("receiveMessage", newMessage);
     } catch (err) {
@@ -103,10 +98,7 @@ setInterval(async () => {
       user.state = "available";
       user.freezeUntil = null;
       user.currentMatch = null;
-
-      // ⏳ Add 2-hour delay before next match
-      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-
+      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2-hour cooldown
       await user.save();
     }
 
@@ -114,10 +106,9 @@ setInterval(async () => {
       console.log("⏰ Unfroze", frozenUsers.length, "users");
     }
   } catch (err) {
-    console.error("Error unfreezing users:", err.message);
+    console.error("❌ Error unfreezing users:", err.message);
   }
 }, 60 * 1000);
-
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;

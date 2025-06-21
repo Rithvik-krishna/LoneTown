@@ -1,4 +1,4 @@
-// pages/Login.jsx
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -13,11 +13,11 @@ export default function Login({ setUser }) {
     setError('');
 
     try {
-      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/login`, {
-  name: form.name,
-  email: form.email,
-  gender: form.gender,
-});
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/login`, {
+        name: form.name,
+        email: form.email,
+        gender: form.gender,
+      });
 
       setUser(res.data);
       localStorage.setItem('userId', res.data._id);
