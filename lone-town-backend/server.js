@@ -28,13 +28,17 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Socket.io Setup
-const io = new Server(http, {
-  cors: {
-    origin: "https://lone-town-nine.vercel.app", // ✅ allow Vercel frontend
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+// src/socket.js
+import { io } from "socket.io-client";
+
+// ✅ Points to Render backend (not Vercel!)
+const socket = io(import.meta.env.VITE_BACKEND_URL, {
+  transports: ['websocket'],
+  withCredentials: true,
 });
+
+export default socket;
+
 
 
 // ✅ Single Socket Handler

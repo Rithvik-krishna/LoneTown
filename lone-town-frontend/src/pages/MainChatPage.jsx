@@ -44,7 +44,7 @@ export default function MainChatPage({
   const retryMatch = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.post('/api/match/find-match', { userId: user._id });
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/find-match`, { userId: user._id });
       if (res.data?.match) {
         setMatch(res.data.match);
         localStorage.setItem('matchId', res.data.match._id);

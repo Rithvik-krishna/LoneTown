@@ -25,7 +25,7 @@ export default function Onboarding({ user, setMatch }) {
     e.preventDefault();
 
     try {
-      const res = await axios.post(`/api/user/onboarding/${user._id}`, form);
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/onboarding/${user._id}`, form);
       if (res.status === 200) {
         alert('✅ Onboarding complete!');
         navigate('/waiting');

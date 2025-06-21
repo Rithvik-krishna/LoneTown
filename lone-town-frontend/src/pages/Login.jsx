@@ -13,11 +13,12 @@ export default function Login({ setUser }) {
     setError('');
 
     try {
-      const res = await axios.post('/api/user/login', {
-        name: form.name,
-        email: form.email,
-        gender: form.gender,
-      });
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/login`, {
+  name: form.name,
+  email: form.email,
+  gender: form.gender,
+});
+
       setUser(res.data);
       localStorage.setItem('userId', res.data._id);
       navigate('/onboarding');
