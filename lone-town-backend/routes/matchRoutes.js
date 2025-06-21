@@ -11,6 +11,10 @@ router.post('/pin', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    if (user.nextMatchEligibleAt && new Date(user.nextMatchEligibleAt) > new Date()) {
+  return res.status(403).json({ message: '🕒 Please wait before getting a new match.' });
+}
+
     user.state = 'pinned';
     await user.save();
 

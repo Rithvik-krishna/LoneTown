@@ -85,6 +85,7 @@ io.on("connection", (socket) => {
 // 🔁 Auto-Unfreeze Task
 setInterval(async () => {
   const now = new Date();
+
   try {
     const frozenUsers = await User.find({
       state: "frozen",
@@ -94,6 +95,11 @@ setInterval(async () => {
     for (const user of frozenUsers) {
       user.state = "available";
       user.freezeUntil = null;
+      user.currentMatch = null;
+
+      // ⏳ Add 2-hour delay before next match
+      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
       await user.save();
     }
 
@@ -104,6 +110,7 @@ setInterval(async () => {
     console.error("Error unfreezing users:", err.message);
   }
 }, 60 * 1000);
+
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
