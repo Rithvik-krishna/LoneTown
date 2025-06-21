@@ -26,8 +26,15 @@ export default function MainChatPage({
         const now = new Date();
         const freezeEnd = new Date(user.freezeUntil);
         const diff = freezeEnd - now;
-        setTimeLeft(diff <= 0 ? 'Ending soon...' : `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`);
-        if (diff <= 0) clearInterval(interval);
+
+        if (diff <= 0) {
+          setTimeLeft('Ending soon...');
+          clearInterval(interval);
+        } else {
+          const hours = Math.floor(diff / 3600000);
+          const minutes = Math.floor((diff % 3600000) / 60000);
+          setTimeLeft(`${hours}h ${minutes}m`);
+        }
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -57,9 +64,21 @@ export default function MainChatPage({
       <h1 className="mb-6 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
 
       {userState === 'frozen' && (
-        <div className="p-3 mb-4 font-semibold text-center bg-yellow-100 rounded">
-          ❄️ You're in a 24-hour reflection period.
-          <br />⏳ <span className="font-bold">{timeLeft}</span>
+        <div className="p-4 mb-6 text-center bg-yellow-100 rounded shadow-md">
+          <h2 className="mb-2 text-lg font-semibold text-yellow-700">🧊 Reflection Mode Active</h2>
+          <p className="text-sm text-yellow-800">
+            You've unpinned your last match. We're giving you space to reflect intentionally before your next match.
+          </p>
+          <p className="mt-2 font-bold text-yellow-900">⏳ Time Left: {timeLeft}</p>
+
+          <div className="mt-4 text-left">
+            <p className="text-sm font-medium text-gray-700">📝 Journaling Prompts:</p>
+            <ul className="pl-5 mt-1 text-xs text-gray-600 list-disc">
+              <li>What did I enjoy about my last interaction?</li>
+              <li>What qualities am I truly seeking?</li>
+              <li>How do I feel after unpinning the match?</li>
+            </ul>
+          </div>
         </div>
       )}
 
