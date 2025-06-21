@@ -3,7 +3,81 @@ const router = express.Router();
 const Match = require('../models/Match');
 const User = require('../models/User');
 
-// ✅ PIN MATCH
+// ✨ Compatibility Scoring Function
+function calculateCompatibility(u1, u2) {
+  let score = 0;
+  if (u1.loveLanguage === u2.loveLanguage) score += 2;
+  if (u1.attachmentStyle === u2.attachmentStyle) score += 2;
+  if (u1.communicationStyle === u2.communicationStyle) score += 1;
+  if (
+    u1.emotionalNeeds &&
+    u2.emotionalNeeds &&
+    u1.emotionalNeeds.toLowerCase().includes(u2.emotionalNeeds.toLowerCase())
+  ) score += 1;
+
+  const ageDiff = Math.abs((u1.age || 0) - (u2.age || 0));
+  if (ageDiff <= 3) score += 2;
+  else if (ageDiff <= 6) score += 1;
+
+  return score;
+}
+
+// ✅ FIND MATCH
+router.post('/find-match', async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.state !== "available" || user.currentMatch) {
+      return res.status(400).json({ message: "User not eligible for match" });
+    }
+
+    const candidates = await User.find({
+      _id: { $ne: userId },
+      state: 'available',
+      currentMatch: null,
+    });
+
+    const scored = candidates.map((other) => ({
+      user: other,
+      score: calculateCompatibility(user, other),
+    })).sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0 || scored[0].score < 3) {
+      return res.json({ message: "No compatible match found" });
+    }
+
+    const bestMatch = scored[0].user;
+
+    // Update states
+    user.state = 'matched';
+    bestMatch.state = 'matched';
+    user.currentMatch = bestMatch._id;
+    bestMatch.currentMatch = user._id;
+    await user.save();
+    await bestMatch.save();
+
+    const match = await Match.create({
+      users: [userId, bestMatch._id],
+      compatibilityScore: scored[0].score,
+    });
+
+    res.json({
+      match: {
+        _id: match._id,
+        name: bestMatch.name,
+        compatibilityScore: scored[0].score,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Matchmaking Error:", err.message);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ✅ PIN
 router.post('/pin', async (req, res) => {
   const { userId } = req.body;
 
@@ -11,163 +85,40 @@ router.post('/pin', async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (user.nextMatchEligibleAt && new Date(user.nextMatchEligibleAt) > new Date()) {
-  return res.status(403).json({ message: '🕒 Please wait before getting a new match.' });
-}
-
     user.state = 'pinned';
     await user.save();
-
     res.json({ message: 'Pinned' });
   } catch (err) {
     res.status(500).json({ error: 'Pin failed', details: err.message });
   }
 });
 
-// ✅ UNPIN MATCH
-// routes/matchRoutes.js
+// ✅ UNPIN
 router.post('/unpin', async (req, res) => {
   const { userId } = req.body;
-  const freezeUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  const freezeUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   try {
-    console.log('🧊 Unpin request received. UserID:', userId);
-
     const user = await User.findById(userId);
-    if (!user) {
-      console.log('❌ User not found');
-      return res.status(404).json({ message: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.state = 'frozen';
     user.freezeUntil = freezeUntil;
-
-    // ✅ Only update if this field exists in schema
-    if ('currentMatch' in user) {
-      user.currentMatch = null;
-    }
+    user.currentMatch = null;
+    user.lastUnmatchedAt = new Date();
 
     await user.save();
-
-    console.log('✅ User unpinned and frozen');
     res.json({ message: 'Unpinned and frozen' });
   } catch (err) {
-    console.error('❌ Server error during unpin:', err.message);
     res.status(500).json({ message: 'Unpin failed', error: err.message });
   }
 });
 
-// routes/matchRoutes.js
-router.post('/find-match', async (req, res) => {
-  const { userId } = req.body;
-  const user = await User.findById(userId);
-  const candidates = await User.find({ _id: { $ne: userId }, state: 'available' });
-
-  let bestMatch = null;
-  let highestScore = 0;
-
-  for (const candidate of candidates) {
-    let score = 0;
-    if (candidate.loveLanguage === user.loveLanguage) score += 2;
-    if (candidate.attachmentStyle === user.attachmentStyle) score += 2;
-    if (candidate.communicationStyle === user.communicationStyle) score += 1;
-    if (
-      candidate.emotionalNeeds &&
-      user.emotionalNeeds &&
-      candidate.emotionalNeeds.includes(user.emotionalNeeds)
-    ) score += 2;
-
-    if (score > highestScore) {
-      highestScore = score;
-      bestMatch = candidate;
-    }
-  }
-
-  if (bestMatch) {
-    // mark both users as matched
-    user.state = 'pinned';
-    bestMatch.state = 'pinned';
-    await user.save();
-    await bestMatch.save();
-
-    res.json({ match: bestMatch });
-  } else {
-    res.json({ message: "No match found" });
-  }
-});
-
-
-// 🤖 Deep Compatibility Match Finder
-router.post('/find-match', async (req, res) => {
-  const { userId } = req.body;
-  const user = await User.findById(userId);
-
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  if (user.state !== 'available' || user.currentMatch) {
-    return res.status(400).json({ message: 'User not eligible for matching' });
-  }
-
-  // Step 1: Find eligible users
-  const candidates = await User.find({
-    _id: { $ne: userId },
-    state: 'available',
-    currentMatch: null,
-  });
-
-  // Step 2: Compatibility scoring
-  const scored = candidates.map((other) => {
-    let score = 0;
-
-    if (user.loveLanguage && user.loveLanguage === other.loveLanguage) score += 2;
-    if (user.attachmentStyle && user.attachmentStyle === other.attachmentStyle) score += 2;
-    if (user.communicationStyle && user.communicationStyle === other.communicationStyle) score += 1;
-    if (user.emotionalNeeds && user.emotionalNeeds === other.emotionalNeeds) score += 1;
-
-    const ageDiff = Math.abs((user.age || 0) - (other.age || 0));
-    if (ageDiff <= 3) score += 2;
-    else if (ageDiff <= 6) score += 1;
-
-    return { user: other, score };
-  });
-
-  // Step 3: Sort and choose best
-  scored.sort((a, b) => b.score - a.score);
-
-  if (scored.length === 0 || scored[0].score < 3) {
-    return res.json({ message: 'No compatible match found' });
-  }
-
-  const matchedUser = scored[0].user;
-
-  // Step 4: Update states + exclusive match link
-  user.state = 'matched';
-  matchedUser.state = 'matched';
-  user.currentMatch = matchedUser._id;
-  matchedUser.currentMatch = user._id;
-  await user.save();
-  await matchedUser.save();
-
-  // Step 5: Create match document
-  const match = new Match({
-    users: [user._id, matchedUser._id],
-    compatibilityScore: scored[0].score,
-  });
-  await match.save();
-
-  res.json({
-    match: {
-      _id: match._id,
-      name: matchedUser.name,
-      compatibilityScore: scored[0].score,
-    },
-  });
-});
-
-// POST /api/match/feedback
+// ✅ FEEDBACK
 router.post('/feedback', async (req, res) => {
-  try {
-    const { userId, matchId, rating, comment } = req.body;
+  const { userId, matchId, rating, comment } = req.body;
 
+  try {
     const match = await Match.findById(matchId);
     if (!match) return res.status(404).json({ message: 'Match not found' });
 
@@ -175,92 +126,14 @@ router.post('/feedback', async (req, res) => {
       userId,
       rating,
       comment,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
 
     await match.save();
     res.json({ message: 'Feedback submitted!' });
   } catch (err) {
-    console.error('❌ Feedback error:', err.message);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-
-// ✨ Compatibility Scoring Function
-function calculateCompatibility(u1, u2) {
-  let score = 0;
-  if (u1.loveLanguage === u2.loveLanguage) score += 1;
-  if (u1.attachmentStyle === u2.attachmentStyle) score += 1;
-  if (u1.communicationStyle === u2.communicationStyle) score += 1;
-  if (
-    u1.emotionalNeeds &&
-    u2.emotionalNeeds &&
-    u1.emotionalNeeds.toLowerCase().includes(u2.emotionalNeeds.toLowerCase())
-  ) {
-    score += 1;
-  }
-  return score; // Max 4
-}
-
-// 🧠 POST /api/match/find-match
-router.post("/find-match", async (req, res) => {
-  const { userId } = req.body;
-
-  try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // Skip if user is already matched/pinned/frozen
-    if (user.state !== "available") {
-      return res.status(400).json({ message: "User not available for match" });
-    }
-
-    const allAvailable = await User.find({
-      _id: { $ne: userId },
-      state: "available",
-      gender: { $ne: user.gender }, // optional filter for opposite gender
-    });
-
-    let bestMatch = null;
-    let bestScore = -1;
-
-    for (const candidate of allAvailable) {
-      const score = calculateCompatibility(user, candidate);
-      if (score > bestScore) {
-        bestMatch = candidate;
-        bestScore = score;
-      }
-    }
-
-    if (!bestMatch) {
-      return res.status(200).json({ message: "No compatible match found" });
-    }
-
-    // ✅ Save the match
-    const newMatch = await Match.create({
-      users: [userId, bestMatch._id],
-    });
-
-    // Update both users
-    await User.findByIdAndUpdate(userId, {
-      currentMatch: newMatch._id,
-      state: "matched",
-    });
-    await User.findByIdAndUpdate(bestMatch._id, {
-      currentMatch: newMatch._id,
-      state: "matched",
-    });
-
-    res.json({
-      match: {
-        _id: newMatch._id,
-        name: bestMatch.name,
-      },
-    });
-  } catch (err) {
-    console.error("❌ Matchmaking Error:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("❌ Feedback Error:", err.message);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 

@@ -21,24 +21,15 @@ export default function MainChatPage({
 
   useEffect(() => {
     let interval;
-
     if (userState === 'frozen' && user?.freezeUntil) {
       interval = setInterval(() => {
         const now = new Date();
         const freezeEnd = new Date(user.freezeUntil);
         const diff = freezeEnd - now;
-
-        if (diff <= 0) {
-          setTimeLeft('Ending soon...');
-          clearInterval(interval);
-        } else {
-          const hours = Math.floor(diff / (1000 * 60 * 60));
-          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeLeft(`${hours}h ${minutes}m left`);
-        }
+        setTimeLeft(diff <= 0 ? 'Ending soon...' : `${Math.floor(diff / 3600000)}h ${Math.floor((diff % 3600000) / 60000)}m`);
+        if (diff <= 0) clearInterval(interval);
       }, 1000);
     }
-
     return () => clearInterval(interval);
   }, [userState, user?.freezeUntil]);
 
@@ -65,31 +56,22 @@ export default function MainChatPage({
     <div className="min-h-screen p-6 bg-gray-100">
       <h1 className="mb-6 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
 
-      {/* ❄️ Frozen State Message */}
       {userState === 'frozen' && (
         <div className="p-3 mb-4 font-semibold text-center bg-yellow-100 rounded">
           ❄️ You're in a 24-hour reflection period.
-          <br />
-          ⏳ <span className="font-bold">{timeLeft}</span>
+          <br />⏳ <span className="font-bold">{timeLeft}</span>
         </div>
       )}
 
-      {/* 📌 Pinned State Message */}
       {userState === 'pinned' && (
         <div className="p-3 mb-4 font-semibold text-center bg-green-100 rounded">
           📌 You’ve pinned this match.
         </div>
       )}
 
-      {/* 💬 Match View */}
       {match ? (
         <>
-          <MatchCard
-            match={match}
-            user={user}
-            userState={userState}
-            setUserState={setUserState}
-          />
+          <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
           <ChatBox
             messages={messages}
             input={messageInput}
@@ -97,12 +79,9 @@ export default function MainChatPage({
             sendMessage={sendMessage}
             currentUserId={user._id}
           />
-          {userState === 'frozen' && (
-            <MatchFeedback matchId={match._id} userId={user._id} />
-          )}
+          {userState === 'frozen' && <MatchFeedback matchId={match._id} userId={user._id} />}
         </>
       ) : (
-        // 🔁 Match Waiting Room
         <div className="p-6 mt-8 text-center bg-white border rounded-lg shadow-md">
           <p className="mb-4 text-xl font-semibold text-gray-700">
             ⏳ Looking for someone deeply compatible...
@@ -118,12 +97,10 @@ export default function MainChatPage({
         </div>
       )}
 
-      {/* 📜 Past Match History */}
       <div className="mt-10">
         <PastMatches userId={user._id} />
       </div>
 
-      {/* 🔐 Logout */}
       <div className="mt-6 text-center">
         <button
           onClick={() => {

@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema({
   communicationStyle: String,
   emotionalNeeds: String,
   age: String,
+  lastUnmatchedAt: {
+  type: Date,
+}
+
 });
 
 module.exports = mongoose.model('User', userSchema);
