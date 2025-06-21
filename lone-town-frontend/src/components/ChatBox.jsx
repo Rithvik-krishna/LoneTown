@@ -17,7 +17,7 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
   })();
 
   return (
-    <div className="flex flex-col p-4 mt-4 bg-white rounded-lg shadow-md h-[80vh]">
+<div className="flex flex-col p-4 mt-4 bg-white rounded-lg shadow-md h-[80vh] max-w-2xl w-full mx-auto">
       <div className="flex-shrink-0 mb-4 font-medium text-center text-gray-700">
         💬 {messages.length}/100 Messages —{" "}
         {isEligibleForVideo ? "🎥 Video unlocked!" : "Keep going!"}

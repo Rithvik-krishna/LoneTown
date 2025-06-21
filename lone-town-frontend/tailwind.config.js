@@ -1,8 +1,11 @@
 // tailwind.config.js
 module.exports = {
+  
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      screens: {
+      'xs': '400px',
       colors: {
         primary: '#093FB4',
         background: '#FFFCFB',
@@ -12,4 +15,5 @@ module.exports = {
     },
   },
   plugins: [],
-};
+},
+}

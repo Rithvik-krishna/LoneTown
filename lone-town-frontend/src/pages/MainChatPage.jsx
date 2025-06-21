@@ -68,7 +68,7 @@ export default function MainChatPage({
   };
 
   return (
-    <div className="min-h-screen p-6 bg-[#FFFCFB]">
+    <div className="min-h-screen px-4 py-6 bg-gray-100 sm:px-6 lg:px-16">
       <h1 className="mb-3 text-3xl font-bold text-center text-[#093FB4]">Lone Town</h1>
 
       {user && (

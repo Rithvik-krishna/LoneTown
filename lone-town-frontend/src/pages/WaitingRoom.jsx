@@ -34,7 +34,7 @@ export default function WaitingRoom({ user, setMatch }) {
   }, [user]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center bg-[#FFFCFB]">
+    <div className="w-full max-w-md bg-gradient-to-br from-indigo-50 to-purple-100">
       <div className="text-6xl mb-6 animate-bounce text-[#ED3500]">💞</div>
       <h2 className="text-3xl font-bold text-[#093FB4] mb-2">Waiting Room</h2>
       <p className="mb-6 text-gray-700">{status}</p>
