@@ -42,7 +42,6 @@ export default function App() {
     fetchUserAndMatch();
   }, []);
 
-  // ✅ Listen for incoming messages ONCE
   useEffect(() => {
     const handleMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
@@ -51,11 +50,10 @@ export default function App() {
     socket.on('receiveMessage', handleMessage);
 
     return () => {
-      socket.off('receiveMessage', handleMessage); // cleanup
+      socket.off('receiveMessage', handleMessage);
     };
   }, []);
 
-  // ✅ Only emit message — do NOT manually add to messages[]
   const sendMessage = () => {
     if (!messageInput.trim() || !user || !match) return;
 
@@ -63,51 +61,53 @@ export default function App() {
       matchId: match._id,
       senderId: user._id,
       text: messageInput,
-      createdAt: new Date().toISOString(), // if using timestamps
+      createdAt: new Date().toISOString(),
     });
 
-    setMessageInput(''); // clear input only
+    setMessageInput('');
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={!user ? <Login setUser={setUser} /> : <Navigate to="/onboarding" />}
-        />
-        <Route
-          path="/onboarding"
-          element={user ? <Onboarding user={user} setMatch={setMatch} /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/waiting"
-          element={user ? <WaitingRoom user={user} setMatch={setMatch} /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/app"
-          element={
-            loading ? (
-              <div className="mt-20 text-center text-gray-600">Loading your experience...</div>
-            ) : user ? (
-              <MainChatPage
-                user={user}
-                userState={userState}
-                match={match}
-                messages={messages}
-                messageInput={messageInput}
-                setMessageInput={setMessageInput}
-                setUserState={setUserState}
-                sendMessage={sendMessage}
-                setMatch={setMatch}
-              />
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route path="*" element={<Navigate to={user ? "/app" : "/login"} />} />
-      </Routes>
-    </BrowserRouter>
+    <div className="min-h-screen bg-[#FFFCFB] text-gray-800 font-sans">
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/login"
+            element={!user ? <Login setUser={setUser} /> : <Navigate to="/onboarding" />}
+          />
+          <Route
+            path="/onboarding"
+            element={user ? <Onboarding user={user} setMatch={setMatch} /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/waiting"
+            element={user ? <WaitingRoom user={user} setMatch={setMatch} /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/app"
+            element={
+              loading ? (
+                <div className="mt-20 text-center text-gray-600">Loading your experience...</div>
+              ) : user ? (
+                <MainChatPage
+                  user={user}
+                  userState={userState}
+                  match={match}
+                  messages={messages}
+                  messageInput={messageInput}
+                  setMessageInput={setMessageInput}
+                  setUserState={setUserState}
+                  sendMessage={sendMessage}
+                  setMatch={setMatch}
+                />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to={user ? "/app" : "/login"} />} />
+        </Routes>
+      </BrowserRouter>
+    </div>
   );
 }

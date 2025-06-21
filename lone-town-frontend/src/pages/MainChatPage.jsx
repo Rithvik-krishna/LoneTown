@@ -63,15 +63,14 @@ export default function MainChatPage({
   const stateColors = {
     available: 'bg-blue-100 text-blue-800',
     matched: 'bg-pink-100 text-pink-700',
-    pinned: 'bg-green-100 text-green-800',
+    pinned: 'bg-[#FFD8D8] text-[#ED3500]',
     frozen: 'bg-yellow-100 text-yellow-800',
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gray-100">
-      <h1 className="mb-3 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
+    <div className="min-h-screen p-6 bg-[#FFFCFB]">
+      <h1 className="mb-3 text-3xl font-bold text-center text-[#093FB4]">Lone Town</h1>
 
-      {/* 🔵 State Awareness Badge */}
       {user && (
         <div className="mb-4 text-center">
           <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${stateColors[userState]}`}>
@@ -86,7 +85,6 @@ export default function MainChatPage({
         </div>
       )}
 
-      {/* 🧊 Reflection Mode UI */}
       {userState === 'frozen' && (
         <div className="p-4 mb-6 text-center bg-yellow-100 rounded shadow-md">
           <h2 className="mb-2 text-lg font-semibold text-yellow-700">🧊 Reflection Mode Active</h2>
@@ -94,26 +92,9 @@ export default function MainChatPage({
             You've unpinned your last match. We're giving you space to reflect intentionally before your next match.
           </p>
           <p className="mt-2 font-bold text-yellow-900">⏳ Time Left: {timeLeft}</p>
-
-          <div className="mt-4 text-left">
-            <p className="text-sm font-medium text-gray-700">📝 Journaling Prompts:</p>
-            <ul className="pl-5 mt-1 text-xs text-gray-600 list-disc">
-              <li>What did I enjoy about my last interaction?</li>
-              <li>What qualities am I truly seeking?</li>
-              <li>How do I feel after unpinning the match?</li>
-            </ul>
-          </div>
         </div>
       )}
 
-      {/* 📌 Pinned State Notice */}
-      {userState === 'pinned' && (
-        <div className="p-3 mb-4 font-semibold text-center bg-green-100 rounded">
-          📌 You’ve pinned this match.
-        </div>
-      )}
-
-      {/* 💬 Chat Area */}
       {match ? (
         <>
           <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
@@ -127,7 +108,6 @@ export default function MainChatPage({
           {userState === 'frozen' && <MatchFeedback matchId={match._id} userId={user._id} />}
         </>
       ) : (
-        // 🔁 Waiting for Match
         <div className="p-6 mt-8 text-center bg-white border rounded-lg shadow-md">
           <p className="mb-4 text-xl font-semibold text-gray-700">
             ⏳ Looking for someone deeply compatible...
@@ -136,24 +116,19 @@ export default function MainChatPage({
           <button
             onClick={retryMatch}
             disabled={isLoading}
-            className="px-6 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50"
+            className="px-6 py-2 text-white bg-[#093FB4] rounded hover:bg-[#072c8e] disabled:opacity-50"
           >
             {isLoading ? 'Searching...' : '🔁 Retry Match Now'}
           </button>
         </div>
       )}
 
-      {/* 📜 Past Matches */}
       <div className="mt-10">
         <PastMatches userId={user._id} />
       </div>
 
-      {/* 💬 Feedback from Past Matches */}
-      {match?.feedback && (
-        <MatchFeedbackDisplay feedback={match.feedback} />
-      )}
+      {match?.feedback && <MatchFeedbackDisplay feedback={match.feedback} />}
 
-      {/* 🔐 Logout */}
       <div className="mt-6 text-center">
         <button
           onClick={() => {

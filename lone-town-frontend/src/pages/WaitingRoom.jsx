@@ -1,3 +1,4 @@
+// pages/WaitingRoom.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ export default function WaitingRoom({ user, setMatch }) {
           localStorage.setItem('matchId', match._id);
           localStorage.setItem('matchName', match.name);
           setMatch(match);
+
           alert(`🎯 Match found: ${match.name}`);
           clearInterval(intervalRef.current);
           navigate("/app");
@@ -26,26 +28,30 @@ export default function WaitingRoom({ user, setMatch }) {
       } catch (err) {
         console.error("❌ Match retry failed:", err.message);
       }
-    }, 30000);
+    }, 30000); // check every 30 seconds
 
     return () => clearInterval(intervalRef.current);
   }, [user]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-gradient-to-br from-indigo-50 to-purple-100">
-      <div className="mb-4 text-4xl animate-bounce">💞</div>
-      <h2 className="mb-2 text-2xl font-bold text-indigo-600">Waiting Room</h2>
-      <p className="text-gray-600">{status}</p>
+    <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center bg-[#FFFCFB]">
+      <div className="text-6xl mb-6 animate-bounce text-[#ED3500]">💞</div>
+      <h2 className="text-3xl font-bold text-[#093FB4] mb-2">Waiting Room</h2>
+      <p className="mb-6 text-gray-700">{status}</p>
 
       <button
         onClick={() => {
           clearInterval(intervalRef.current);
           navigate("/onboarding");
         }}
-        className="px-4 py-2 mt-6 text-white bg-red-500 rounded hover:bg-red-600"
+        className="px-6 py-2 mt-4 text-white bg-[#ED3500] hover:bg-red-600 rounded transition"
       >
         🛑 Stop Searching
       </button>
+
+      <p className="mt-10 text-sm text-[#888] italic">
+        Looking for someone deeply compatible based on your values...
+      </p>
     </div>
   );
 }

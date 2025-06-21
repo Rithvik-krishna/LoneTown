@@ -1,4 +1,3 @@
-// components/MatchFeedback.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -11,8 +10,7 @@ export default function MatchFeedback({ userId, matchId, onSubmit }) {
 
     if (!matchId || matchId === 'debug-match') {
       console.warn("⚠️ Skipping feedback submission for mock match");
-      onSubmit(); // fake success
-      return;
+      onSubmit(); return;
     }
 
     try {
@@ -31,8 +29,8 @@ export default function MatchFeedback({ userId, matchId, onSubmit }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md p-4 mx-auto mt-6 bg-white rounded shadow">
-      <h2 className="mb-2 text-lg font-semibold text-center text-indigo-600">🧠 How was your match?</h2>
+    <form onSubmit={handleSubmit} className="max-w-md p-4 mx-auto mt-6 bg-[#FFFCFB] border rounded shadow">
+      <h2 className="mb-2 text-lg font-semibold text-[#093FB4] text-center">🧠 How was your match?</h2>
 
       <select
         value={rating}
@@ -57,7 +55,7 @@ export default function MatchFeedback({ userId, matchId, onSubmit }) {
 
       <button
         type="submit"
-        className="w-full px-4 py-2 text-white bg-indigo-600 rounded hover:bg-indigo-700"
+        className="w-full px-4 py-2 text-white bg-[#ED3500] rounded hover:bg-red-600"
       >
         Submit Feedback
       </button>
