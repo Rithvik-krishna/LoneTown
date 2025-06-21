@@ -30,10 +30,12 @@ app.get("/", (req, res) => {
 // ✅ Socket.io Setup
 const io = new Server(http, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "https://lone-town-nine.vercel.app", // ✅ allow Vercel frontend
     methods: ["GET", "POST"],
-  },
+    credentials: true
+  }
 });
+
 
 // ✅ Single Socket Handler
 io.on("connection", (socket) => {
