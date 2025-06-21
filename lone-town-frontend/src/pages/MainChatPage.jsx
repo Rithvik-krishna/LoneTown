@@ -3,8 +3,8 @@ import MatchCard from '../components/MatchCard';
 import ChatBox from '../components/ChatBox';
 import MatchFeedback from '../components/MatchFeedback';
 import PastMatches from '../components/PastMatches';
-import axios from 'axios';
 import MatchFeedbackDisplay from '../components/MatchFeedbackDisplay';
+import axios from 'axios';
 
 export default function MainChatPage({
   user,
@@ -60,10 +60,33 @@ export default function MainChatPage({
     }
   };
 
+  const stateColors = {
+    available: 'bg-blue-100 text-blue-800',
+    matched: 'bg-pink-100 text-pink-700',
+    pinned: 'bg-green-100 text-green-800',
+    frozen: 'bg-yellow-100 text-yellow-800',
+  };
+
   return (
     <div className="min-h-screen p-6 bg-gray-100">
-      <h1 className="mb-6 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
+      <h1 className="mb-3 text-3xl font-bold text-center text-indigo-600">Lone Town</h1>
 
+      {/* 🔵 State Awareness Badge */}
+      {user && (
+        <div className="mb-4 text-center">
+          <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${stateColors[userState]}`}>
+            {userState.toUpperCase()}
+          </span>
+          <div className="mt-2 text-sm text-gray-600">
+            {userState === 'available' && '🔍 You’re currently searching for a match.'}
+            {userState === 'matched' && '💞 A match has been found. You can chat now or pin the match.'}
+            {userState === 'pinned' && '📌 You’ve pinned this match. Continue your conversation!'}
+            {userState === 'frozen' && '❄️ You’re in a 24-hour reflection freeze. You’ll be rematched soon.'}
+          </div>
+        </div>
+      )}
+
+      {/* 🧊 Reflection Mode UI */}
       {userState === 'frozen' && (
         <div className="p-4 mb-6 text-center bg-yellow-100 rounded shadow-md">
           <h2 className="mb-2 text-lg font-semibold text-yellow-700">🧊 Reflection Mode Active</h2>
@@ -83,12 +106,14 @@ export default function MainChatPage({
         </div>
       )}
 
+      {/* 📌 Pinned State Notice */}
       {userState === 'pinned' && (
         <div className="p-3 mb-4 font-semibold text-center bg-green-100 rounded">
           📌 You’ve pinned this match.
         </div>
       )}
 
+      {/* 💬 Chat Area */}
       {match ? (
         <>
           <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
@@ -102,6 +127,7 @@ export default function MainChatPage({
           {userState === 'frozen' && <MatchFeedback matchId={match._id} userId={user._id} />}
         </>
       ) : (
+        // 🔁 Waiting for Match
         <div className="p-6 mt-8 text-center bg-white border rounded-lg shadow-md">
           <p className="mb-4 text-xl font-semibold text-gray-700">
             ⏳ Looking for someone deeply compatible...
@@ -117,14 +143,17 @@ export default function MainChatPage({
         </div>
       )}
 
+      {/* 📜 Past Matches */}
       <div className="mt-10">
         <PastMatches userId={user._id} />
       </div>
 
+      {/* 💬 Feedback from Past Matches */}
       {match?.feedback && (
-  <MatchFeedbackDisplay feedback={match.feedback} />
-)}
+        <MatchFeedbackDisplay feedback={match.feedback} />
+      )}
 
+      {/* 🔐 Logout */}
       <div className="mt-6 text-center">
         <button
           onClick={() => {
