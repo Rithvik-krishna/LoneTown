@@ -99,14 +99,18 @@ router.post('/find-match', async (req, res) => {
   const user = await User.findById(userId);
 
   if (!user) return res.status(404).json({ message: 'User not found' });
+  if (user.state !== 'available' || user.currentMatch) {
+    return res.status(400).json({ message: 'User not eligible for matching' });
+  }
 
-  // Step 1: Find compatible "available" users
+  // Step 1: Find eligible users
   const candidates = await User.find({
     _id: { $ne: userId },
     state: 'available',
+    currentMatch: null,
   });
 
-  // Step 2: Score candidates based on compatibility
+  // Step 2: Compatibility scoring
   const scored = candidates.map((other) => {
     let score = 0;
 
@@ -122,6 +126,7 @@ router.post('/find-match', async (req, res) => {
     return { user: other, score };
   });
 
+  // Step 3: Sort and choose best
   scored.sort((a, b) => b.score - a.score);
 
   if (scored.length === 0 || scored[0].score < 3) {
@@ -130,13 +135,15 @@ router.post('/find-match', async (req, res) => {
 
   const matchedUser = scored[0].user;
 
-  // Step 3: Update both users' states
+  // Step 4: Update states + exclusive match link
   user.state = 'matched';
   matchedUser.state = 'matched';
+  user.currentMatch = matchedUser._id;
+  matchedUser.currentMatch = user._id;
   await user.save();
   await matchedUser.save();
 
-  // Step 4: Create Match document
+  // Step 5: Create match document
   const match = new Match({
     users: [user._id, matchedUser._id],
     compatibilityScore: scored[0].score,

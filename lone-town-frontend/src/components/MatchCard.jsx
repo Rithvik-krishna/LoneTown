@@ -1,14 +1,14 @@
-import React from "react";
-import axios from "axios";
+// components/MatchCard.jsx
+import React from 'react';
+import axios from 'axios';
 
 export default function MatchCard({ match, user, userState, setUserState }) {
   const handlePin = async () => {
     try {
-      const res = await axios.post('/api/match/pin', {
+      await axios.post('/api/match/pin', {
         userId: user._id,
         matchId: match._id,
       });
-      console.log("✅ Pin successful:", res.data);
       setUserState("pinned");
     } catch (err) {
       console.error("❌ Pin failed:", err.message);
@@ -17,11 +17,10 @@ export default function MatchCard({ match, user, userState, setUserState }) {
 
   const handleUnpin = async () => {
     try {
-      const res = await axios.post('/api/match/unpin', {
+      await axios.post('/api/match/unpin', {
         userId: user._id,
         matchId: match._id,
       });
-      console.log("✅ Unpin successful:", res.data);
       setUserState("frozen");
     } catch (err) {
       console.error("❌ Unpin failed:", err.message);
@@ -30,12 +29,13 @@ export default function MatchCard({ match, user, userState, setUserState }) {
 
   return (
     <div className="p-4 mb-4 bg-white rounded-lg shadow-md">
-      <h2 className="mb-1 text-xl font-bold text-indigo-700">💞 Match: {match.name}</h2>
+      <h2 className="mb-1 text-xl font-bold text-indigo-700">💘 Match: {match.name}</h2>
 
+      {/* 🧠 Compatibility Score Display */}
       {match.compatibilityScore !== undefined && (
-        <div className="mb-3 text-sm text-gray-600">
-          🎯 <strong>Compatibility Score:</strong> {match.compatibilityScore}/8
-        </div>
+        <p className="mb-2 text-sm text-gray-600">
+          Compatibility Score: <span className="font-semibold">{match.compatibilityScore}/10</span>
+        </p>
       )}
 
       <div className="flex gap-4">
