@@ -5,27 +5,28 @@ require("dotenv").config();
 const matchRoutes = require('./routes/matchRoutes');
 const userRoutes = require('./routes/UserRoutes');
 const User = require('./models/User');
+const Message = require('./models/Message');
 
 const app = express();
 const http = require("http").createServer(app);
 const { Server } = require("socket.io");
 
-// ✅ Middlewares — MOVE THESE TO THE TOP
 app.use(cors());
 app.use(express.json());
 
 // ✅ Connect DB
 connectDB();
 
-// ✅ Load routes AFTER middleware
-app.use('/api/user', userRoutes);  
+// ✅ API Routes
+app.use('/api/user', userRoutes);
 app.use('/api/match', matchRoutes);
 
+// ✅ Test Route
 app.get("/", (req, res) => {
   res.send("Lone Town API Running ✅");
 });
 
-// ✅ Socket setup
+// ✅ Socket.io Setup
 const io = new Server(http, {
   cors: {
     origin: "http://localhost:5173",
@@ -33,6 +34,7 @@ const io = new Server(http, {
   },
 });
 
+// ✅ Single Socket Handler
 io.on("connection", (socket) => {
   console.log("✅ New user connected:", socket.id);
 
@@ -41,9 +43,38 @@ io.on("connection", (socket) => {
     console.log(`🟢 User ${userId} joined room ${userId}`);
   });
 
-  socket.on("sendMessage", (msg) => {
-    console.log("📩 Message received:", msg);
-    io.emit("receiveMessage", msg);
+  socket.on("sendMessage", async (msg) => {
+    try {
+      // 💬 Save message to DB
+      const newMessage = await Message.create({
+        matchId: msg.matchId,
+        senderId: msg.senderId,
+        text: msg.text,
+        createdAt: new Date()
+      });
+
+      // 📈 Update analytics
+      const user = await User.findById(msg.senderId);
+      if (user) {
+        user.intentionality.totalMessagesSent += 1;
+
+        if (user.intentionality.lastMessageAt) {
+          const now = Date.now();
+          const delay = (now - new Date(user.intentionality.lastMessageAt).getTime()) / 1000;
+          user.intentionality.averageResponseTime =
+            (user.intentionality.averageResponseTime + delay) / 2;
+        }
+
+        user.intentionality.lastMessageAt = new Date();
+        await user.save();
+      }
+
+      // 📡 Emit message to sender and receiver
+      socket.emit("receiveMessage", newMessage);
+      socket.to(msg.receiverId).emit("receiveMessage", newMessage);
+    } catch (err) {
+      console.error("❌ Message handling failed:", err.message);
+    }
   });
 
   socket.on("disconnect", () => {
@@ -51,10 +82,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🔁 Auto-unfreeze users every 1 minute
+// 🔁 Auto-Unfreeze Task
 setInterval(async () => {
   const now = new Date();
-
   try {
     const frozenUsers = await User.find({
       state: "frozen",
@@ -75,7 +105,7 @@ setInterval(async () => {
   }
 }, 60 * 1000);
 
-// ✅ Start the server
+// ✅ Start Server
 const PORT = process.env.PORT || 5000;
 http.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

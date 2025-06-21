@@ -2,35 +2,28 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
   name: String,
-  gender: String,
   email: String,
-  compatibilityTraits: {
-    emotionalIntelligence: Number,
-    introvertExtrovert: Number,
-    values: [String],
-    lifestyle: String,
-  },
-  state: {
-  type: String,
-  enum: ['available', 'matched', 'pinned', 'frozen'],
-  default: 'available',
-},
+  gender: String,
+  state: { type: String, default: "available" },
+  freezeUntil: Date,
+  currentMatch: { type: mongoose.Schema.Types.ObjectId, ref: 'Match' },
 
-freezeUntil: Date, // optional for frozen state
-
-   // 🧠 Onboarding traits
+  // Onboarding
   loveLanguage: String,
   attachmentStyle: String,
   communicationStyle: String,
   emotionalNeeds: String,
+  age: Number,
 
-  
-  currentMatch: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Match",
-    default: null,
-  },
-  freezeUntil: Date,
+  // ✅ Intentionality tracking
+  intentionality: {
+    loginCount: { type: Number, default: 0 },
+    totalMessagesSent: { type: Number, default: 0 },
+    averageResponseTime: { type: Number, default: 0 }, // seconds
+    lastMessageAt: { type: Date },
+    pinCount: { type: Number, default: 0 },
+    unpinCount: { type: Number, default: 0 },
+  }
 });
 
 module.exports = mongoose.model("User", userSchema);

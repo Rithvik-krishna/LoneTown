@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
-// Create or login user
+
 router.post('/login', async (req, res) => {
   console.log('👉 Received body:', req.body); // ✅ debug log
 
@@ -36,17 +36,53 @@ router.post('/onboarding/:id', async (req, res) => {
   res.json(user);
 });
 
-// GET user by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await require('../models/User').findById(req.params.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
-  } catch (err) {
-    console.error("❌ Fetch user error:", err.message);
-    res.status(500).json({ message: 'Server error' });
-  }
+// ✅ PIN
+router.post('/pin', async (req, res) => {
+  const { userId } = req.body;
+  const user = await User.findById(userId);
+  user.state = 'pinned';
+  user.intentionality.pinCount += 1;
+  await user.save();
+  res.json({ message: 'Pinned' });
 });
 
+// ✅ UNPIN
+router.post('/unpin', async (req, res) => {
+  const { userId, matchId } = req.body;
+  const freezeUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await User.findByIdAndUpdate(userId, {
+    state: 'frozen',
+    freezeUntil,
+    currentMatch: null,
+    $inc: { 'intentionality.unpinCount': 1 }
+  });
+
+  const match = await Match.findById(matchId).populate('users');
+  const otherUserId = match.users.find((id) => id.toString() !== userId);
+
+  if (otherUserId) {
+    await User.findByIdAndUpdate(otherUserId, {
+      state: 'available',
+      currentMatch: null,
+    });
+  }
+
+  res.status(200).json({ message: 'Unpinned. Freeze started.' });
+});
+
+router.get('/:id', async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  res.json(user);
+});
+
+
+// 🔍 Analytics endpoint
+router.get('/analytics/:id', async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json(user.intentionality);
+});
 
 module.exports = router;

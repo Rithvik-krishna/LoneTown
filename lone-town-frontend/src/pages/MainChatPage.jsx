@@ -18,6 +18,9 @@ export default function MainChatPage({
   const [timeLeft, setTimeLeft] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  
+  console.log("🧠 User Intent:", user.intentionality);
+
   useEffect(() => {
     let interval;
 
@@ -117,7 +120,9 @@ export default function MainChatPage({
         >
           Logout & Reset
         </button>
+
       </div>
     </div>
   );
 }
+

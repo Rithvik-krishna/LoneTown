@@ -7,35 +7,51 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const isEligibleForVideo = (() => {
+    const now = Date.now();
+    const cutoff = now - 48 * 60 * 60 * 1000; // 48 hours
+    const recentMessages = messages.filter(
+      (msg) => new Date(msg.createdAt).getTime() >= cutoff
+    );
+    return recentMessages.length >= 100;
+  })();
+
   return (
     <div className="flex flex-col p-4 mt-4 bg-white rounded-lg shadow-md h-[80vh]">
-
-      {/* 💬 Header */}
+      {/* Header */}
       <div className="flex-shrink-0 mb-4 font-medium text-center text-gray-700">
-        💬 {messages.length}/100 Messages — {messages.length >= 100 ? "🎥 Video unlocked!" : "Keep going!"}
+        💬 {messages.length}/100 Messages —{" "}
+        {isEligibleForVideo ? "🎥 Video unlocked!" : "Keep going!"}
       </div>
 
-      {/* 📜 Scrollable Message List */}
+      {/* Messages */}
       <div className="flex-1 pr-1 space-y-2 overflow-y-auto">
         {messages.map((msg, index) => {
-          const isSender = String(msg.senderId) === String(currentUserId);
-          return (
-            <div
-              key={index}
-              className={`p-2 max-w-xs rounded-lg break-words ${
-                isSender
-                  ? 'bg-blue-500 text-white self-end ml-auto'
-                  : 'bg-gray-300 text-black self-start mr-auto'
-              }`}
-            >
-              {msg.text}
-            </div>
-          );
+  const isSender = String(msg.senderId) === String(currentUserId);
+  return (
+    <div
+      key={index}
+      className={`max-w-xs p-2 rounded-lg break-words ${
+        isSender
+          ? "bg-blue-500 text-white self-end ml-auto"
+          : "bg-gray-300 text-black self-start mr-auto"
+      }`}
+    >
+      {msg.text}
+      <div className="text-[10px] text-right text-gray-200 mt-1">
+        {new Date(msg.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
         })}
+      </div>
+    </div>
+  );
+})}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ✍️ Input Bar */}
+      {/* Input */}
       <div className="flex items-center flex-shrink-0 pt-2 mt-4 border-t">
         <textarea
           rows={1}
@@ -44,8 +60,8 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
           value={input}
           onChange={(e) => {
             setInput(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = e.target.scrollHeight + 'px';
+            e.target.style.height = "auto";
+            e.target.style.height = e.target.scrollHeight + "px";
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -62,9 +78,9 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
         </button>
       </div>
 
-      {/* 🎥 Video Unlock Message */}
-      {messages.length >= 100 && (
-        <div className="flex-shrink-0 mt-4 text-center">
+      {/* Video Call Unlock */}
+      {isEligibleForVideo && (
+        <div className="flex-shrink-0 mt-2 text-center">
           <p className="font-semibold text-green-600">
             🎉 You’ve unlocked video calling!
           </p>
