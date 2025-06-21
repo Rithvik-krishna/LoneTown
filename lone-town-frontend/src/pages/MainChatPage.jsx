@@ -4,6 +4,7 @@ import ChatBox from '../components/ChatBox';
 import MatchFeedback from '../components/MatchFeedback';
 import PastMatches from '../components/PastMatches';
 import axios from 'axios';
+import MatchFeedbackDisplay from '../components/MatchFeedbackDisplay';
 
 export default function MainChatPage({
   user,
@@ -119,6 +120,10 @@ export default function MainChatPage({
       <div className="mt-10">
         <PastMatches userId={user._id} />
       </div>
+
+      {match?.feedback && (
+  <MatchFeedbackDisplay feedback={match.feedback} />
+)}
 
       <div className="mt-6 text-center">
         <button
