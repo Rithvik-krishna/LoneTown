@@ -25,6 +25,15 @@ const userSchema = new mongoose.Schema({
   age: String,
   lastUnmatchedAt: {
   type: Date,
+  loveLanguage: String,
+attachmentStyle: String,
+communicationStyle: String,
+emotionalNeeds: String,
+age: Number,
+values: String,
+personalityType: String,
+goals: String,
+
 }
 
 });
