@@ -96,47 +96,60 @@ router.post('/find-match', async (req, res) => {
 // 🤖 Deep Compatibility Match Finder
 router.post('/find-match', async (req, res) => {
   const { userId } = req.body;
+  const user = await User.findById(userId);
 
-  try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+  if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const candidates = await User.find({ _id: { $ne: userId }, state: 'available' });
+  // Step 1: Find compatible "available" users
+  const candidates = await User.find({
+    _id: { $ne: userId },
+    state: 'available',
+  });
 
-    let bestMatch = null;
-    let highestScore = 0;
+  // Step 2: Score candidates based on compatibility
+  const scored = candidates.map((other) => {
+    let score = 0;
 
-    for (const candidate of candidates) {
-      let score = 0;
-      if (candidate.loveLanguage === user.loveLanguage) score += 2;
-      if (candidate.attachmentStyle === user.attachmentStyle) score += 2;
-      if (candidate.communicationStyle === user.communicationStyle) score += 1;
-      if (
-        candidate.emotionalNeeds &&
-        user.emotionalNeeds &&
-        candidate.emotionalNeeds.includes(user.emotionalNeeds)
-      ) score += 2;
+    if (user.loveLanguage && user.loveLanguage === other.loveLanguage) score += 2;
+    if (user.attachmentStyle && user.attachmentStyle === other.attachmentStyle) score += 2;
+    if (user.communicationStyle && user.communicationStyle === other.communicationStyle) score += 1;
+    if (user.emotionalNeeds && user.emotionalNeeds === other.emotionalNeeds) score += 1;
 
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = candidate;
-      }
-    }
+    const ageDiff = Math.abs((user.age || 0) - (other.age || 0));
+    if (ageDiff <= 3) score += 2;
+    else if (ageDiff <= 6) score += 1;
 
-    if (bestMatch) {
-      user.state = 'pinned';
-      bestMatch.state = 'pinned';
-      await user.save();
-      await bestMatch.save();
+    return { user: other, score };
+  });
 
-      return res.json({ match: bestMatch });
-    }
+  scored.sort((a, b) => b.score - a.score);
 
-    res.status(200).json({ message: 'No match found' });
-  } catch (err) {
-    console.error('❌ Matchmaking error:', err.message);
-    res.status(500).json({ message: 'Matchmaking failed' });
+  if (scored.length === 0 || scored[0].score < 3) {
+    return res.json({ message: 'No compatible match found' });
   }
+
+  const matchedUser = scored[0].user;
+
+  // Step 3: Update both users' states
+  user.state = 'matched';
+  matchedUser.state = 'matched';
+  await user.save();
+  await matchedUser.save();
+
+  // Step 4: Create Match document
+  const match = new Match({
+    users: [user._id, matchedUser._id],
+    compatibilityScore: scored[0].score,
+  });
+  await match.save();
+
+  res.json({
+    match: {
+      _id: match._id,
+      name: matchedUser.name,
+      compatibilityScore: scored[0].score,
+    },
+  });
 });
 
 // POST /api/match/feedback

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-// import matchSound from '../assets/match-found.mp3'; // if using sound
+// import matchSound from '../assets/match-found.mp3'; // Uncomment if using sound
 
 export default function WaitingRoom({ user, setMatch }) {
   const [status, setStatus] = useState("⏳ Searching for a mindful match...");
@@ -14,13 +14,14 @@ export default function WaitingRoom({ user, setMatch }) {
     intervalRef.current = setInterval(async () => {
       try {
         const res = await axios.post("/api/match/find-match", { userId: user._id });
+
         if (res.data?.match) {
           const match = res.data.match;
           localStorage.setItem('matchId', match._id);
           localStorage.setItem('matchName', match.name);
           setMatch(match);
 
-          // 🔊 Play sound (optional)
+          // 🔊 Play match sound (optional)
           // new Audio(matchSound).play();
 
           alert(`🎯 Match found: ${match.name}`);
@@ -30,9 +31,9 @@ export default function WaitingRoom({ user, setMatch }) {
       } catch (err) {
         console.error("❌ Match retry failed:", err.message);
       }
-    }, 30000);
+    }, 30000); // 🔁 every 30 seconds
 
-    return () => clearInterval(intervalRef.current);
+    return () => clearInterval(intervalRef.current); // cleanup
   }, [user]);
 
   return (
