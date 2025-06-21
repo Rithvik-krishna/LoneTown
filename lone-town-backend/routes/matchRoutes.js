@@ -168,24 +168,24 @@ router.post('/feedback', async (req, res) => {
   try {
     const { userId, matchId, rating, comment } = req.body;
 
-    // ✅ Skip dummy matches
-    if (!matchId || matchId === 'debug-match') {
-      return res.status(200).json({ message: 'Dummy match - skipping save.' });
-    }
-
     const match = await Match.findById(matchId);
-    if (!match) return res.status(404).json({ error: "Match not found" });
+    if (!match) return res.status(404).json({ message: 'Match not found' });
 
-    match.feedback = match.feedback || [];
-    match.feedback.push({ userId, rating, comment, createdAt: new Date() });
+    match.feedback.push({
+      userId,
+      rating,
+      comment,
+      createdAt: new Date()
+    });
 
     await match.save();
-    res.status(200).json({ message: "Feedback saved" });
+    res.json({ message: 'Feedback submitted!' });
   } catch (err) {
-    console.error("❌ Feedback error:", err.message);
-    res.status(500).json({ error: "Server error" });
+    console.error('❌ Feedback error:', err.message);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 // ✨ Compatibility Scoring Function
 function calculateCompatibility(u1, u2) {
