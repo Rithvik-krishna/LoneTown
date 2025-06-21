@@ -10,7 +10,8 @@ const Message = require('./models/Message');
 const app = express();
 const http = require("http").createServer(app);
 const { Server } = require("socket.io");
-
+const matchHistoryRoutes = require('./routes/matchHistoryRoutes');
+app.use('/api/match', matchHistoryRoutes);
 app.use(cors());
 app.use(express.json());
 

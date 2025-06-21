@@ -1,13 +1,21 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const matchSchema = new mongoose.Schema({
-  users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  compatibilityScore: Number,
-  feedback: {
-    from: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    message: String,
-    submittedAt: Date,
-  }
-}, { timestamps: true });
+  userA: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  userB: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  pinned: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  messages: [{ text: String, timestamp: Date }],
+  messageCount: { type: Number, default: 0 },
+  feedback: [
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rating: Number,
+    comment: String,
+    createdAt: Date,
+  },
+],
 
-module.exports = mongoose.model('Match', matchSchema);
+});
+
+module.exports = mongoose.model("Match", matchSchema);
