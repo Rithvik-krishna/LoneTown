@@ -5,81 +5,110 @@ import socket from '../socket';
 
 export default function WaitingRoom({ user, setMatch }) {
   const [status, setStatus] = useState("⏳ Searching for a mindful match...");
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [matchPending, setMatchPending] = useState(false);
   const navigate = useNavigate();
   const intervalRef = useRef();
   const canvasRef = useRef(null);
 
-  // ✅ Real-time socket listener
+  // Recovery for interrupted matches
   useEffect(() => {
-    socket.on("matchFound", (data) => {
-      const match = data.match;
-      localStorage.setItem('matchId', match._id);
-      localStorage.setItem('matchName', match.name);
-      setMatch(match);
+    const checkPending = async () => {
+      const id = localStorage.getItem('pendingMatch');
+      if (!id) return;
+      try {
+        const res = await axios.get(`/api/match/${id}`);
+        if (res.data?.users?.includes(user._id)) {
+          navigate('/app', { state: { recoveredMatch: true }, replace: true });
+        }
+      } catch {
+        localStorage.removeItem('pendingMatch');
+      }
+    };
+    if (user) checkPending();
+  }, [user, navigate]);
 
-      alert(`🎯 Match found: ${match.name}`);
-      clearInterval(intervalRef.current);
-      navigate("/app");
-    });
+  // 🧩 Single, robust socket listener
+  useEffect(() => {
+    const handler = async (data) => {
+      if (!data.confirmed) return;
+      setMatchPending(true);
+      localStorage.setItem('pendingMatch', data.matchId);
 
-    return () => socket.off("matchFound");
-  }, []);
+      try {
+        const res = await axios.get(`/api/match/verify/${data.matchId}`);
+        if (!res.data.valid) throw new Error('invalid');
 
-  // ✅ Fallback polling
+        const m = res.data.match;
+        setMatch(m);
+        localStorage.setItem('matchId', m._id);
+        localStorage.setItem('matchName', m.name);
+
+        await new Promise(r => setTimeout(r, 300));
+        navigate("/app", {
+          state: { confirmedMatch: true, matchData: m },
+          replace: true
+        });
+      } catch (err) {
+        console.error("Match flow failed:", err);
+        setMatchPending(false);
+        localStorage.removeItem('pendingMatch');
+      }
+    };
+
+    socket.on("matchFound", handler);
+    return () => socket.off("matchFound", handler);
+  }, [navigate, setMatch]);
+
+  // Fallback polling
   useEffect(() => {
     if (!user) return;
-
     intervalRef.current = setInterval(async () => {
       try {
-        const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/find-match`, {
-          userId: user._id,
-        });
-
+        const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/find-match`, { userId: user._id });
         if (res.data?.match) {
-          const match = res.data.match;
-          localStorage.setItem('matchId', match._id);
-          localStorage.setItem('matchName', match.name);
-          setMatch(match);
-
-          alert(`🎯 Match found: ${match.name}`);
+          const m = res.data.match;
+          localStorage.setItem('matchId', m._id);
+          localStorage.setItem('matchName', m.name);
+          setMatch(m);
           clearInterval(intervalRef.current);
-          navigate("/app");
+          navigate("/app", { state: { confirmedMatch: true, matchData: m }, replace: true });
         }
       } catch (err) {
-        console.error("❌ Match retry failed:", err.message);
+        console.error("Fallback retry failed:", err);
       }
     }, 30000);
 
     return () => clearInterval(intervalRef.current);
-  }, [user]);
+  }, [user, setMatch, navigate]);
 
-  // 🍃 Cherry blossom animation
+  // Cherry blossom canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const leaves = [];
+    let leaves = [];
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const createLeaf = () => ({
+      x: Math.random() * canvas.width,
+      y: -20,
+      size: Math.random() * 20 + 10,
+      speedX: Math.random() * 2 - 1,
+      speedY: Math.random() * 2 + 1.5,
+      rotation: 0,
+      rotationSpeed: Math.random() * 0.1,
+    });
+    leaves = new Array(30).fill().map(createLeaf);
 
-    function createLeaf() {
-      return {
-        x: Math.random() * canvas.width,
-        y: -20,
-        size: Math.random() * 20 + 10,
-        speedX: Math.random() * 2 - 1,
-        speedY: Math.random() * 2 + 1.5,
-        rotation: 0,
-        rotationSpeed: Math.random() * 0.1,
-      };
-    }
-
-    for (let i = 0; i < 30; i++) leaves.push(createLeaf());
-
-    function animateLeaves() {
+    let animFrame;
+    function animate() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'rgba(255, 183, 197, 0.8)';
-      leaves.forEach((leaf, index) => {
+      ctx.fillStyle = 'rgba(255,183,197,0.8)';
+      leaves.forEach((leaf, i) => {
         ctx.save();
         ctx.translate(leaf.x, leaf.y);
         ctx.rotate(leaf.rotation);
@@ -94,69 +123,57 @@ export default function WaitingRoom({ user, setMatch }) {
         leaf.y += leaf.speedY;
         leaf.rotation += leaf.rotationSpeed;
 
-        if (leaf.y > canvas.height) leaves[index] = createLeaf();
+        if (leaf.y > canvas.height) leaves[i] = createLeaf();
       });
-
-      requestAnimationFrame(animateLeaves);
+      animFrame = requestAnimationFrame(animate);
     }
+    animate();
 
-    animateLeaves();
-
-    const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+    window.addEventListener('resize', resize);
+    return () => {
+      cancelAnimationFrame(animFrame);
+      window.removeEventListener('resize', resize);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return (
     <div className="relative min-h-screen overflow-hidden text-white bg-gradient-to-br from-gray-900 to-black">
-      <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+      <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 text-center">
         <div className="mb-4 text-6xl text-pink-400 animate-pulse">💞</div>
         <h2 className="mb-2 text-4xl font-bold drop-shadow-lg">Waiting Room</h2>
-        <p className="mb-6 text-gray-300 text-md">
-          {status}
-        </p>
+        <p className="mb-6 text-gray-300">{status}</p>
 
         <div className="relative w-24 h-24 mb-6">
           <svg className="w-full h-full" viewBox="0 0 100 100">
-            <g>
-              <path
-                d="M 50 30 Q 60 20 70 30 Q 80 40 70 50 Q 60 60 50 50 Q 40 60 30 50 Q 20 40 30 30 Q 40 20 50 30"
-                fill="rgba(255, 105, 180, 0.8)"
-                stroke="rgba(255, 105, 180, 1)"
-                strokeWidth="2"
-              >
-                <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="4s" repeatCount="indefinite" />
-                <animate attributeName="fill-opacity" values="0.8;1;0.8" dur="1s" repeatCount="indefinite" />
-              </path>
-              <path
-                d="M 50 35 Q 55 25 60 35 Q 65 45 60 55 Q 55 65 50 55 Q 45 65 40 55 Q 35 45 40 35 Q 45 25 50 35"
-                fill="rgba(255, 182, 193, 0.8)"
-                stroke="rgba(255, 182, 193, 1)"
-                strokeWidth="2"
-              >
-                <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="-360 50 50" dur="4s" repeatCount="indefinite" />
-                <animate attributeName="fill-opacity" values="0.8;1;0.8" dur="1s" repeatCount="indefinite" />
-              </path>
-            </g>
+            {/* SVG spinner hearts */}
           </svg>
-          <span className="absolute text-xl font-semibold text-white transform -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2 drop-shadow-md">
-            Matching...
+          <span className="absolute inset-0 flex items-center justify-center text-xl font-semibold drop-shadow-md">
+            {matchPending ? 'Almost there…' : 'Matching...'}
           </span>
         </div>
 
         <button
-          onClick={() => {
+          onClick={async () => {
+            if (!confirm("Stop searching?")) return;
+            setIsCancelling(true);
             clearInterval(intervalRef.current);
-            navigate("/onboarding");
+            try {
+              await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/cancel-search`, { userId: user._id });
+              navigate("/onboarding");
+            } catch {
+              console.error("Cancel failed");
+            } finally {
+              setIsCancelling(false);
+            }
           }}
-          className="px-6 py-3 mt-4 text-white transition-all duration-200 bg-red-600 rounded-lg shadow-md hover:bg-red-700 hover:shadow-red-500/50"
+          disabled={isCancelling}
+          className={`px-6 py-3 mt-4 text-white rounded-lg shadow-md ${
+            isCancelling ? "bg-gray-500" : "bg-red-600 hover:bg-red-700"
+          }`}
         >
-          🛑 Stop Searching
+          {isCancelling ? "Cancelling..." : "🛑 Stop Searching"}
         </button>
 
         <p className="mt-6 text-sm italic text-gray-400">

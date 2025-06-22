@@ -65,16 +65,24 @@ export default function Signup({ setUser }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-    const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/signup`, form);
-      setUser(res.data);
-      localStorage.setItem('userId', res.data._id);
-      navigate('/onboarding');
-    } catch (err) {
+  e.preventDefault();
+  try {
+    const res = await axios.post(
+      `${import.meta.env.VITE_BACKEND_URL}/api/user/signup`,
+      form,
+      { timeout: 5000 } // 5 second timeout
+    );
+    // Handle success
+  } catch (err) {
+    if (err.code === 'ECONNABORTED') {
+      setError('Connection timeout - server not responding');
+    } else if (err.code === 'ERR_NETWORK') {
+      setError('Cannot connect to server - check your network');
+    } else {
       setError(err.response?.data?.error || 'Signup failed');
     }
-  };
+  }
+};
 
   return (
     <div

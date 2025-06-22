@@ -80,7 +80,7 @@ const isOnboardingComplete = (onboarding) => {
 const handleSubmit = async (e) => {
   e.preventDefault();
   try {
-    const res = await axios.post('/api/user/login', {
+    const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/login`, {
       email: form.email,
       password: form.password,
     });

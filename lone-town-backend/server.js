@@ -8,59 +8,84 @@ const connectDB = require("./config/db");
 const matchRoutes = require("./routes/matchRoutes");
 const userRoutes = require("./routes/UserRoutes");
 const matchHistoryRoutes = require("./routes/matchHistoryRoutes");
-const chatRoutes = require('./routes/chatRoutes');
+const chatRoutes = require("./routes/chatRoutes");
+
 const User = require("./models/User");
 const Message = require("./models/Message");
+const Match = require("./models/Match"); // ✅ Needed for match state
+const MatchQueue = require("./models/MatchQueue");
 
 dotenv.config();
 
+// ✅ App & DB
 const app = express();
 const server = http.createServer(app);
-
-// ✅ Connect to MongoDB
+app.use(express.json()); // ✅ Needed to parse JSON bodies!
 connectDB();
 
-// ✅ Middleware
-app.use(cors());
-app.use(express.json());
-
-// ✅ API Routes
-app.use("/api/user", userRoutes);
-app.use("/api/match", matchRoutes);
-app.use("/api/match", matchHistoryRoutes);
-app.use("/api/chat", chatRoutes);
-
-// ✅ Health Check
-app.get("/", (req, res) => {
-  res.send("💖 Lone Town API Running");
-});
-
-// ✅ Socket.IO
+// ✅ Socket.IO Setup
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // Frontend dev server
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
-app.set("socketio", io);
-
-// ✅ Socket.IO Events
-io.on("connection", (socket) => {
-  console.log("⚡ [Socket] Connected:", socket.id);
-
-  socket.on("join", (userId) => {
+// ✅ Socket Middleware: Join match room if user has one
+io.use(async (socket, next) => {
+  try {
+    const userId = socket.handshake.auth.userId;
     if (userId) {
-      socket.join(userId);
-      console.log(`📥 [Join] User ${userId} joined their personal room`);
+      const user = await User.findById(userId);
+      if (user?.currentMatch) {
+        socket.join(`match_${user.currentMatch}`);
+      }
+    }
+    next();
+  } catch (err) {
+    next(new Error("Authentication error"));
+  }
+});
+
+// ✅ Single Socket Connection Handler
+io.on("connection", (socket) => {
+  const userId = socket.handshake.auth.userId;
+  console.log("⚡ [Socket] Connected:", socket.id, "| User:", userId);
+
+  // Join personal room
+  if (userId) {
+    socket.join(userId);
+    console.log(`📥 [Join] User ${userId} joined their personal room`);
+  }
+
+  // Request match state
+  socket.on("requestMatchState", async () => {
+    try {
+      const user = await User.findById(userId);
+      if (user?.currentMatch) {
+        const match = await Match.findById(user.currentMatch);
+        socket.emit("matchStateUpdate", { status: "active", match });
+      }
+    } catch (err) {
+      console.error("❌ [Socket] Match state error:", err.message);
     }
   });
 
-  socket.on("sendMessage", async (msg) => {
+  // Cancel match search
+  socket.on("cancelSearch", async () => {
     try {
-      const { matchId, senderId, receiverId, text } = msg;
+      await MatchQueue.deleteOne({ userId });
+      socket.emit("searchCancelled");
+      console.log(`🛑 [Socket] Search cancelled for user ${userId}`);
+    } catch (err) {
+      console.error("❌ [Socket] cancelSearch error:", err.message);
+    }
+  });
 
-      // Save message in DB
+  // Messaging
+  socket.on("sendMessage", async ({ matchId, senderId, receiverId, text }) => {
+    try {
       const newMessage = await Message.create({
         matchId,
         senderId,
@@ -68,7 +93,7 @@ io.on("connection", (socket) => {
         createdAt: new Date(),
       });
 
-      // ✅ Intentionality Analytics Update
+      // Analytics update
       const user = await User.findById(senderId);
       if (user) {
         const now = Date.now();
@@ -79,28 +104,49 @@ io.on("connection", (socket) => {
         user.intentionality.averageResponseTime =
           (user.intentionality.averageResponseTime + delay) / 2;
         user.intentionality.lastMessageAt = new Date();
-
         await user.save();
       }
 
-      // ✅ Emit message to both sender and receiver
+      // Emit message
       socket.emit("receiveMessage", newMessage);
       if (receiverId) {
         socket.to(receiverId).emit("receiveMessage", newMessage);
         console.log(`📤 [Socket] Message sent to ${receiverId}`);
       }
-
     } catch (err) {
       console.error("❌ [Socket] sendMessage error:", err.message);
     }
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     console.log("🛑 [Socket] Disconnected:", socket.id);
   });
 });
 
-// 🔁 Auto-Unfreeze Cron Job (Runs every 60 seconds)
+// ✅ Attach IO to App
+app.set("socketio", io);
+
+// ✅ Express Middleware
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(express.json());
+
+// ✅ Routes
+app.use("/api/user", userRoutes);
+app.use("/api/match", matchRoutes);
+app.use("/api/match", matchHistoryRoutes);
+app.use("/api/chat", chatRoutes);
+
+// ✅ Health Check
+app.get("/", (req, res) => {
+  res.send("💖 Lone Town API Running");
+});
+
+// ✅ Matchmaking Engine
+const { startMatchingInterval } = require("./matchMaking/algorithm");
+startMatchingInterval(io);
+
+// 🔁 Auto-Unfreeze Cron Job (every 60s)
 setInterval(async () => {
   try {
     const now = new Date();
@@ -109,11 +155,14 @@ setInterval(async () => {
       freezeUntil: { $lte: now },
     });
 
+    const userIds = frozenUsers.map((user) => user._id);
+    await MatchQueue.deleteMany({ userId: { $in: userIds } });
+
     for (const user of frozenUsers) {
       user.state = "available";
       user.freezeUntil = null;
       user.currentMatch = null;
-      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // +2 hrs
+      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
       await user.save();
     }
 

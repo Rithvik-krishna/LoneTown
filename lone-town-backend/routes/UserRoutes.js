@@ -33,11 +33,9 @@ router.post('/signup', async (req, res) => {
 });
 
 
-//LOGIN
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('🔐 Login payload:', req.body);
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
@@ -54,7 +52,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 
 

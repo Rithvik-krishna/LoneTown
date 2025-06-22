@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Login from './Login';
-import Signup from './pages/Signup';
-import Onboarding from './pages/Onboarding';
-import WaitingRoom from './pages/WaitingRoom';
-import MainChatPage from './pages/MainChatPage';
-import LandingPage from './pages/LandingPage';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import socket from './socket';
+import Signup from './Signup';
+import Onboarding from './Onboarding';
+import WaitingRoom from './WaitingRoom';
+import MainChatPage from './MainChatPage';
+import LandingPage from './LandingPage';
+import ForgotPassword from './ForgotPassword';
+import ResetPassword from './ResetPassword';
+import socket from '../socket';
 import axios from 'axios';
 
 export default function MainRouter() {
@@ -19,72 +19,116 @@ export default function MainRouter() {
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isPublicRoute = ['/login', '/signup', '/forgot-password', '/reset-password'].some(path =>
+    location.pathname.startsWith(path)
+  );
 
   useEffect(() => {
+    if (isPublicRoute) return; // 🔐 Skip protected logic for public routes
+
     const storedUserId = localStorage.getItem('userId');
-    const matchId = localStorage.getItem('matchId');
-    const matchName = localStorage.getItem('matchName');
 
-    const fetchUserAndMatch = async () => {
+    const fetchUserData = async () => {
       try {
-        if (storedUserId) {
-          const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/${storedUserId}`);
-          const fetchedUser = res.data;
-          setUser(fetchedUser);
-          setUserState(fetchedUser.state || 'available');
-          socket.emit('join', storedUserId);
+        if (!storedUserId) return navigate('/login');
 
-          if (matchId && matchName) {
-            const currentMatch = { _id: matchId, name: matchName };
-            setMatch(currentMatch);
+        const { data: userData } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/${storedUserId}`);
+        setUser(userData);
+        setUserState(userData.state || 'available');
 
-            const chatRes = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/chat/messages/${matchId}`);
-            setMessages(chatRes.data);
-          }
+        socket.emit('join', storedUserId);
 
-          // ✅ Navigation logic
-          const ob = fetchedUser.onboarding || {};
-          const isOnboarded = ob.loveLanguage && ob.attachmentStyle && ob.communicationStyle &&
-            ob.emotionalNeeds && ob.age && ob.values && ob.personalityType && ob.goals;
+        const { data: matchRes } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/match/verify-current`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
 
-          if (!isOnboarded) {
-            navigate('/onboarding', { replace: true });
-          } else if (fetchedUser.currentMatch) {
-            navigate('/app', { replace: true });
-          } else {
-            navigate('/waiting', { replace: true });
-          }
+        if (matchRes.hasActiveMatch) {
+          const currentMatch = {
+            _id: matchRes.match._id,
+            name: matchRes.match.users.find(u => u._id !== storedUserId)?.name,
+            feedback: matchRes.match.feedback,
+          };
+          setMatch(currentMatch);
+          localStorage.setItem('matchId', currentMatch._id);
+          localStorage.setItem('matchName', currentMatch.name);
+
+          const { data: chatHistory } = await axios.get(
+            `${import.meta.env.VITE_BACKEND_URL}/api/chat/messages/${currentMatch._id}`
+          );
+          setMessages(chatHistory);
+        }
+
+        const ob = userData.onboarding || {};
+        const isOnboarded = ob.loveLanguage && ob.attachmentStyle && ob.communicationStyle &&
+          ob.emotionalNeeds && ob.age && ob.values && ob.personalityType && ob.goals;
+
+        if (!isOnboarded) {
+          navigate('/onboarding');
+        } else if (matchRes.hasActiveMatch) {
+          navigate('/app');
+        } else {
+          navigate('/waiting');
         }
       } catch (err) {
-        console.error('❌ Failed to fetch user/match:', err);
+        console.error('❌ Failed to fetch user or match:', err);
+        localStorage.clear();
+        navigate('/login');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserAndMatch();
-  }, [navigate]);
+    fetchUserData();
+  }, [navigate, location.pathname, isPublicRoute]);
+
+  useEffect(() => {
+    if (match && user && !isPublicRoute) {
+      navigate('/app');
+    }
+  }, [match, user, navigate, isPublicRoute]);
+
+  useEffect(() => {
+    const verifyMatch = async () => {
+      if (!user) return;
+      try {
+        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/match/verify-current`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (!data.hasActiveMatch && window.location.pathname === '/app') {
+          navigate('/waiting');
+        }
+      } catch (err) {
+        console.warn('🔁 Auto-check failed:', err);
+      }
+    };
+
+    const interval = setInterval(verifyMatch, 30000);
+    window.addEventListener('focus', verifyMatch);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', verifyMatch);
+    };
+  }, [user, navigate]);
 
   useEffect(() => {
     const handleMessage = (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages(prev => [...prev, msg]);
     };
-
     socket.on('receiveMessage', handleMessage);
     return () => socket.off('receiveMessage', handleMessage);
   }, []);
 
   const sendMessage = () => {
     if (!messageInput.trim() || !user || !match) return;
-
-    const messageObj = {
+    const msg = {
       matchId: match._id,
       senderId: user._id,
       text: messageInput,
       createdAt: new Date().toISOString(),
     };
-
-    socket.emit('sendMessage', messageObj);
+    socket.emit('sendMessage', msg);
     setMessageInput('');
   };
 
