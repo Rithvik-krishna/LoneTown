@@ -1,7 +1,7 @@
-// pages/Onboarding.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import cherry from '../assets/cherry.jpg';
 
 export default function Onboarding({ user, setMatch }) {
   const navigate = useNavigate();
@@ -25,7 +25,10 @@ export default function Onboarding({ user, setMatch }) {
     e.preventDefault();
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/user/onboarding/${user._id}`, form);
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/user/onboarding/${user._id}`,
+        form
+      );
       if (res.status === 200) {
         alert('✅ Onboarding complete!');
         navigate('/waiting');
@@ -39,115 +42,82 @@ export default function Onboarding({ user, setMatch }) {
   };
 
   return (
-    <div className="min-h-screen py-10 px-4 bg-[#FFFCFB]">
+    <div
+      className="relative flex items-center justify-center min-h-screen px-4 overflow-hidden font-sans text-white bg-fixed bg-center bg-cover"
+      style={{
+        backgroundImage: `linear-gradient(to bottom, rgba(30, 30, 30, 0.85), rgba(20, 20, 20, 0.95)), url(${cherry})`,
+      }}
+    >
+      <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+
       <form
         onSubmit={handleSubmit}
-        className="max-w-xl p-8 mx-auto space-y-4 bg-white border-2 border-[#FFD8D8] rounded-xl shadow-lg"
+        className="relative z-10 w-full max-w-lg p-8 space-y-6 bg-gray-900 border border-pink-400 shadow-2xl bg-opacity-80 rounded-2xl"
+        style={{ boxShadow: '0 0 20px rgba(255, 105, 180, 0.4)' }}
       >
-        <h2 className="text-3xl font-bold text-center text-[#093FB4] mb-4">
-          ✨ Intentional Onboarding
-        </h2>
+        <h2 className="text-3xl font-bold text-center text-pink-300">💖 Enchanting Onboarding</h2>
+        <p className="text-sm text-center text-gray-300">
+          Unveil your heart’s deepest desires 🌹
+        </p>
 
-        <div>
-          <label className="block font-medium text-gray-700">💖 Love Language</label>
-          <select
-            name="loveLanguage"
-            value={form.loveLanguage}
-            onChange={handleChange}
-            className="w-full p-2 mt-1 border rounded"
-          >
-            <option value="">Select</option>
-            <option>Words of Affirmation</option>
-            <option>Acts of Service</option>
-            <option>Gifts</option>
-            <option>Quality Time</option>
-            <option>Physical Touch</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🔐 Attachment Style</label>
-          <input
-            name="attachmentStyle"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.attachmentStyle}
-            onChange={handleChange}
-            placeholder="e.g. Secure, Anxious"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🗣 Communication Style</label>
-          <input
-            name="communicationStyle"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.communicationStyle}
-            onChange={handleChange}
-            placeholder="e.g. Direct, Indirect"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">❤️ Emotional Needs</label>
-          <input
-            name="emotionalNeeds"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.emotionalNeeds}
-            onChange={handleChange}
-            placeholder="What do you need emotionally?"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🎂 Age</label>
-          <input
-            name="age"
-            type="number"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.age}
-            onChange={handleChange}
-            placeholder="e.g. 22"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🌱 Core Values</label>
-          <input
-            name="values"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.values}
-            onChange={handleChange}
-            placeholder="e.g. honesty, growth"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🧠 Personality Type</label>
-          <input
-            name="personalityType"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.personalityType}
-            onChange={handleChange}
-            placeholder="e.g. INFP, ENFJ"
-          />
-        </div>
-
-        <div>
-          <label className="block font-medium text-gray-700">🎯 Relationship Goals</label>
-          <input
-            name="goals"
-            className="w-full p-2 mt-1 border rounded"
-            value={form.goals}
-            onChange={handleChange}
-            placeholder="e.g. Long-term commitment"
-          />
-        </div>
+        {[
+          {
+            label: '💞 Love Language',
+            name: 'loveLanguage',
+            type: 'select',
+            options: [
+              'Words of Affirmation',
+              'Acts of Service',
+              'Gifts',
+              'Quality Time',
+              'Physical Touch',
+            ],
+          },
+          { label: '🔐 Attachment Style', name: 'attachmentStyle' },
+          { label: '🗣 Communication Style', name: 'communicationStyle' },
+          { label: '❤️ Emotional Needs', name: 'emotionalNeeds' },
+          { label: '🎂 Age', name: 'age', type: 'number' },
+          { label: '🌱 Core Values', name: 'values' },
+          { label: '🧠 Personality Type', name: 'personalityType' },
+          { label: '🎯 Relationship Goals', name: 'goals' },
+        ].map((field) => (
+          <div key={field.name}>
+            <label className="block mb-1 text-sm font-semibold text-pink-300">
+              {field.label}
+            </label>
+            {field.type === 'select' ? (
+              <select
+                name={field.name}
+                value={form[field.name]}
+                onChange={handleChange}
+                className="w-full p-3 text-white bg-gray-800 border border-pink-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:outline-none"
+              >
+                <option value="">Select</option>
+                {field.options.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type={field.type || 'text'}
+                name={field.name}
+                value={form[field.name]}
+                onChange={handleChange}
+                placeholder={`Enter your ${field.name}`}
+                className="w-full p-3 text-white placeholder-gray-400 bg-gray-800 border border-pink-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:outline-none"
+              />
+            )}
+          </div>
+        ))}
 
         <button
           type="submit"
-          className="w-full py-2 mt-6 text-white bg-[#ED3500] hover:bg-red-600 transition-colors duration-200 rounded"
+          className="w-full py-3 mt-4 text-white transition duration-300 bg-pink-600 shadow-md hover:bg-pink-700 rounded-xl hover:scale-105"
+          style={{ boxShadow: '0 0 12px rgba(255, 105, 180, 0.6)' }}
         >
-          Continue ➡️
+          Begin Your Love Story ➡️
         </button>
       </form>
     </div>

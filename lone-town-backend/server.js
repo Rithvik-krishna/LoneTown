@@ -1,16 +1,21 @@
 const express = require("express");
-const connectDB = require("./config/db");
 const cors = require("cors");
-require("dotenv").config();
-const matchRoutes = require('./routes/matchRoutes');
-const userRoutes = require('./routes/UserRoutes');
-const matchHistoryRoutes = require('./routes/matchHistoryRoutes');
-const User = require('./models/User');
-const Message = require('./models/Message');
+const dotenv = require("dotenv");
+const http = require("http");
+const { Server } = require("socket.io");
+
+const connectDB = require("./config/db");
+const matchRoutes = require("./routes/matchRoutes");
+const userRoutes = require("./routes/UserRoutes");
+const matchHistoryRoutes = require("./routes/matchHistoryRoutes");
+const chatRoutes = require('./routes/chatRoutes');
+const User = require("./models/User");
+const Message = require("./models/Message");
+
+dotenv.config();
 
 const app = express();
-const http = require("http").createServer(app);
-const { Server } = require("socket.io");
+const server = http.createServer(app);
 
 // ✅ Connect to MongoDB
 connectDB();
@@ -20,75 +25,85 @@ app.use(cors());
 app.use(express.json());
 
 // ✅ API Routes
-app.use('/api/user', userRoutes);
-app.use('/api/match', matchRoutes);
-app.use('/api/match', matchHistoryRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/match", matchRoutes);
+app.use("/api/match", matchHistoryRoutes);
+app.use("/api/chat", chatRoutes);
 
-// ✅ Health Check Route
+// ✅ Health Check
 app.get("/", (req, res) => {
-  res.send("Lone Town API Running ✅");
+  res.send("💖 Lone Town API Running");
 });
 
-// ✅ Socket.IO Setup
-const io = new Server(http, {
+// ✅ Socket.IO
+const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // ✅ update this to Vercel domain if needed
-    methods: ["GET", "POST"]
-  }
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
 });
 
+app.set("socketio", io);
+
+// ✅ Socket.IO Events
 io.on("connection", (socket) => {
-  console.log("✅ New user connected:", socket.id);
+  console.log("⚡ [Socket] Connected:", socket.id);
 
   socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`🟢 User ${userId} joined room ${userId}`);
+    if (userId) {
+      socket.join(userId);
+      console.log(`📥 [Join] User ${userId} joined their personal room`);
+    }
   });
 
   socket.on("sendMessage", async (msg) => {
     try {
-      // 💬 Save message to DB
+      const { matchId, senderId, receiverId, text } = msg;
+
+      // Save message in DB
       const newMessage = await Message.create({
-        matchId: msg.matchId,
-        senderId: msg.senderId,
-        text: msg.text,
-        createdAt: new Date()
+        matchId,
+        senderId,
+        text,
+        createdAt: new Date(),
       });
 
-      // 📈 Update analytics
-      const user = await User.findById(msg.senderId);
+      // ✅ Intentionality Analytics Update
+      const user = await User.findById(senderId);
       if (user) {
+        const now = Date.now();
+        const last = new Date(user.intentionality.lastMessageAt).getTime() || now;
+        const delay = (now - last) / 1000;
+
         user.intentionality.totalMessagesSent += 1;
-
-        if (user.intentionality.lastMessageAt) {
-          const now = Date.now();
-          const delay = (now - new Date(user.intentionality.lastMessageAt).getTime()) / 1000;
-          user.intentionality.averageResponseTime =
-            (user.intentionality.averageResponseTime + delay) / 2;
-        }
-
+        user.intentionality.averageResponseTime =
+          (user.intentionality.averageResponseTime + delay) / 2;
         user.intentionality.lastMessageAt = new Date();
+
         await user.save();
       }
 
-      // 📡 Send to both sender and receiver
+      // ✅ Emit message to both sender and receiver
       socket.emit("receiveMessage", newMessage);
-      socket.to(msg.receiverId).emit("receiveMessage", newMessage);
+      if (receiverId) {
+        socket.to(receiverId).emit("receiveMessage", newMessage);
+        console.log(`📤 [Socket] Message sent to ${receiverId}`);
+      }
+
     } catch (err) {
-      console.error("❌ Message handling failed:", err.message);
+      console.error("❌ [Socket] sendMessage error:", err.message);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+    console.log("🛑 [Socket] Disconnected:", socket.id);
   });
 });
 
-// 🔁 Auto-Unfreeze Task
+// 🔁 Auto-Unfreeze Cron Job (Runs every 60 seconds)
 setInterval(async () => {
-  const now = new Date();
-
   try {
+    const now = new Date();
     const frozenUsers = await User.find({
       state: "frozen",
       freezeUntil: { $lte: now },
@@ -98,20 +113,20 @@ setInterval(async () => {
       user.state = "available";
       user.freezeUntil = null;
       user.currentMatch = null;
-      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2-hour cooldown
+      user.nextMatchEligibleAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // +2 hrs
       await user.save();
     }
 
     if (frozenUsers.length > 0) {
-      console.log("⏰ Unfroze", frozenUsers.length, "users");
+      console.log(`⏰ Unfroze ${frozenUsers.length} user(s)`);
     }
   } catch (err) {
-    console.error("❌ Error unfreezing users:", err.message);
+    console.error("❌ Unfreeze Cron Failed:", err.message);
   }
 }, 60 * 1000);
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
-http.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`🚀 Lone Town Server running → http://localhost:${PORT}`);
 });

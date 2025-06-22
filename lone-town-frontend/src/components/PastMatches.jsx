@@ -10,7 +10,7 @@ export default function PastMatches({ userId }) {
 
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`/api/match/history/${userId}`);
+        const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/match/history/${userId}`);
         setHistory(res.data.history);
       } catch (err) {
         console.error("❌ Error fetching match history:", err);

@@ -14,7 +14,7 @@ export default function MatchFeedback({ userId, matchId, onSubmit }) {
     }
 
     try {
-      await axios.post('/api/match/feedback', {
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/feedback`, {
         userId,
         matchId,
         rating,

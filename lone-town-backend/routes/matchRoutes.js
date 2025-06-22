@@ -22,7 +22,7 @@ function calculateCompatibility(u1, u2) {
   return score;
 }
 
-// ✅ FIND MATCH
+// ✅ FIND MATCH with optional real-time emit
 router.post('/find-match', async (req, res) => {
   const { userId } = req.body;
 
@@ -51,7 +51,7 @@ router.post('/find-match', async (req, res) => {
 
     const bestMatch = scored[0].user;
 
-    // Update states
+    // Update user states
     user.state = 'matched';
     bestMatch.state = 'matched';
     user.currentMatch = bestMatch._id;
@@ -59,11 +59,32 @@ router.post('/find-match', async (req, res) => {
     await user.save();
     await bestMatch.save();
 
+    // Create match document
     const match = await Match.create({
       users: [userId, bestMatch._id],
       compatibilityScore: scored[0].score,
     });
 
+    // ✅ Emit matchFound event if socket.io is available
+    const io = req.app.get("socketio");
+    if (io) {
+      io.to(user._id.toString()).emit("matchFound", {
+        match: {
+          _id: match._id,
+          name: bestMatch.name,
+          compatibilityScore: scored[0].score,
+        },
+      });
+      io.to(bestMatch._id.toString()).emit("matchFound", {
+        match: {
+          _id: match._id,
+          name: user.name,
+          compatibilityScore: scored[0].score,
+        },
+      });
+    }
+
+    // Return response to client
     res.json({
       match: {
         _id: match._id,
@@ -77,7 +98,7 @@ router.post('/find-match', async (req, res) => {
   }
 });
 
-// ✅ PIN
+// ✅ PIN MATCH
 router.post('/pin', async (req, res) => {
   const { userId } = req.body;
 
@@ -87,16 +108,17 @@ router.post('/pin', async (req, res) => {
 
     user.state = 'pinned';
     await user.save();
+
     res.json({ message: 'Pinned' });
   } catch (err) {
     res.status(500).json({ error: 'Pin failed', details: err.message });
   }
 });
 
-// ✅ UNPIN
+// ✅ UNPIN MATCH
 router.post('/unpin', async (req, res) => {
   const { userId } = req.body;
-  const freezeUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const freezeUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
   try {
     const user = await User.findById(userId);
@@ -114,7 +136,7 @@ router.post('/unpin', async (req, res) => {
   }
 });
 
-// ✅ FEEDBACK
+// ✅ SUBMIT FEEDBACK
 router.post('/feedback', async (req, res) => {
   const { userId, matchId, rating, comment } = req.body;
 

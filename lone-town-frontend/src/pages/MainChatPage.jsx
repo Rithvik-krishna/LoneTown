@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MatchCard from '../components/MatchCard';
 import ChatBox from '../components/ChatBox';
 import MatchFeedback from '../components/MatchFeedback';
 import PastMatches from '../components/PastMatches';
 import MatchFeedbackDisplay from '../components/MatchFeedbackDisplay';
 import axios from 'axios';
+import cherry from '../assets/cherry.jpg';
 
 export default function MainChatPage({
   user,
@@ -19,6 +20,7 @@ export default function MainChatPage({
 }) {
   const [timeLeft, setTimeLeft] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     let interval;
@@ -44,7 +46,9 @@ export default function MainChatPage({
   const retryMatch = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/find-match`, { userId: user._id });
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/match/find-match`, {
+        userId: user._id,
+      });
       if (res.data?.match) {
         setMatch(res.data.match);
         localStorage.setItem('matchId', res.data.match._id);
@@ -60,85 +64,182 @@ export default function MainChatPage({
     }
   };
 
+  // 🌸 Blossom Animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const petals = [];
+    const createPetal = () => ({
+      x: Math.random() * canvas.width,
+      y: -20,
+      size: Math.random() * 20 + 10,
+      speedX: Math.random() * 1 - 0.5,
+      speedY: Math.random() * 2 + 1,
+      rotation: 0,
+      rotationSpeed: Math.random() * 0.05,
+    });
+
+    for (let i = 0; i < 30; i++) petals.push(createPetal());
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(255, 183, 197, 0.7)';
+      petals.forEach((p, i) => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(5, -p.size / 2, 0, -p.size);
+        ctx.quadraticCurveTo(-5, -p.size / 2, 0, 0);
+        ctx.fill();
+        ctx.restore();
+
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.rotation += p.rotationSpeed;
+
+        if (p.y > canvas.height) petals[i] = createPetal();
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const stateColors = {
-    available: 'bg-blue-100 text-blue-800',
-    matched: 'bg-pink-100 text-pink-700',
-    pinned: 'bg-[#FFD8D8] text-[#ED3500]',
-    frozen: 'bg-yellow-100 text-yellow-800',
+    available: 'bg-pink-700 text-white',
+    matched: 'bg-pink-600 text-white',
+    pinned: 'bg-rose-600 text-white',
+    frozen: 'bg-yellow-500 text-black',
   };
 
   return (
-    <div className="min-h-screen px-4 py-6 bg-gray-100 sm:px-6 lg:px-16">
-      <h1 className="mb-3 text-3xl font-bold text-center text-[#093FB4]">Lone Town</h1>
+    <div
+      className="relative flex items-center justify-center min-h-screen px-4 overflow-hidden font-sans text-white bg-fixed bg-center bg-cover"
+      style={{
+        backgroundImage: `linear-gradient(to bottom, rgba(10,10,10,0.95), rgba(25,0,20,0.9)), url(${cherry})`,
+      }}
+    >
+      {/* 🌸 Falling Petals Layer */}
+      <canvas
+        ref={canvasRef}
+        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+      />
 
-      {user && (
-        <div className="mb-4 text-center">
-          <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${stateColors[userState]}`}>
-            {userState.toUpperCase()}
-          </span>
-          <div className="mt-2 text-sm text-gray-600">
-            {userState === 'available' && '🔍 You’re currently searching for a match.'}
-            {userState === 'matched' && '💞 A match has been found. You can chat now or pin the match.'}
-            {userState === 'pinned' && '📌 You’ve pinned this match. Continue your conversation!'}
-            {userState === 'frozen' && '❄️ You’re in a 24-hour reflection freeze. You’ll be rematched soon.'}
+      <div className="absolute inset-0 bg-black bg-opacity-60"></div>
+
+      <div className="relative z-10 w-full max-w-3xl p-6 space-y-6 bg-gray-900 border border-pink-400 rounded-lg shadow-lg bg-opacity-90">
+        <header className="text-center">
+          <h1 className="mb-2 text-4xl font-bold text-pink-400">Lone Town 🌸</h1>
+          <div className="w-16 h-1 mx-auto bg-pink-500"></div>
+        </header>
+
+        {user && (
+          <div className="text-center">
+            <span
+              className={`inline-block px-3 py-1 text-sm font-medium rounded ${stateColors[userState]} transition-all duration-300 shadow-md`}
+            >
+              {userState.toUpperCase()}
+            </span>
+            <p className="mt-2 text-sm text-gray-300">
+              {userState === 'available' && '🔍 Searching for your cherry blossom match.'}
+              {userState === 'matched' && '💞 Connected with your match. Chat or pin now.'}
+              {userState === 'pinned' && '📌 Enjoying your pinned match under the blossoms.'}
+              {userState === 'frozen' && '❄️ Reflecting in a 24-hour freeze. Next match soon.'}
+            </p>
           </div>
-        </div>
-      )}
+        )}
 
-      {userState === 'frozen' && (
-        <div className="p-4 mb-6 text-center bg-yellow-100 rounded shadow-md">
-          <h2 className="mb-2 text-lg font-semibold text-yellow-700">🧊 Reflection Mode Active</h2>
-          <p className="text-sm text-yellow-800">
-            You've unpinned your last match. We're giving you space to reflect intentionally before your next match.
-          </p>
-          <p className="mt-2 font-bold text-yellow-900">⏳ Time Left: {timeLeft}</p>
-        </div>
-      )}
+        {userState === 'frozen' && (
+          <div className="p-4 bg-yellow-200 border border-yellow-500 rounded-lg shadow-sm bg-opacity-20">
+            <h2 className="mb-2 text-lg font-semibold text-yellow-400">🧊 Reflection Mode</h2>
+            <p className="text-sm text-yellow-300">
+              You’ve unpinned your last match. Reflect under the cherry blossoms.
+            </p>
+            <p className="mt-2 font-medium text-yellow-200">⏳ Time Left: {timeLeft}</p>
+          </div>
+        )}
 
-      {match ? (
-        <>
-          <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
-          <ChatBox
-            messages={messages}
-            input={messageInput}
-            setInput={setMessageInput}
-            sendMessage={sendMessage}
-            currentUserId={user._id}
-          />
-          {userState === 'frozen' && <MatchFeedback matchId={match._id} userId={user._id} />}
-        </>
-      ) : (
-        <div className="p-6 mt-8 text-center bg-white border rounded-lg shadow-md">
-          <p className="mb-4 text-xl font-semibold text-gray-700">
-            ⏳ Looking for someone deeply compatible...
-          </p>
-          <p className="mb-4 text-gray-500">Our system is searching for the right match for you.</p>
+        {match ? (
+          <>
+            <MatchCard match={match} user={user} userState={userState} setUserState={setUserState} />
+            <div className="p-4 bg-gray-800 rounded-lg shadow-md">
+              <ChatBox
+                messages={messages}
+                input={messageInput}
+                setInput={setMessageInput}
+                sendMessage={sendMessage}
+                currentUserId={user._id}
+              />
+            </div>
+            {userState === 'frozen' && (
+              <div className="p-4 bg-gray-800 rounded-lg shadow-md">
+                <MatchFeedback matchId={match._id} userId={user._id} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="p-6 text-center bg-gray-800 border border-pink-300 rounded-lg shadow-md">
+            <p className="mb-4 text-lg font-medium text-gray-200">
+              ⏳ Blossoming a match for you...
+            </p>
+            <p className="mb-4 text-gray-400">
+              Our system is finding your perfect cherry blossom connection.
+            </p>
+            <button
+              onClick={retryMatch}
+              disabled={isLoading}
+              className="px-6 py-2 text-white transition-all duration-200 bg-pink-500 rounded hover:bg-pink-600 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2 animate-spin" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="white" strokeWidth="3" />
+                    <path fill="none" stroke="white" strokeWidth="3" d="M 12 2 A 10 10 0 0 1 21 12" />
+                  </svg>
+                  Searching...
+                </span>
+              ) : (
+                '🔁 Find Match Now'
+              )}
+            </button>
+          </div>
+        )}
+
+        <div className="p-4 bg-gray-800 rounded-lg shadow-md">
+          <PastMatches userId={user._id} />
+        </div>
+
+        {match?.feedback && (
+          <div className="p-4 mt-6 bg-gray-800 rounded-lg shadow-md">
+            <MatchFeedbackDisplay feedback={match.feedback} />
+          </div>
+        )}
+
+        <div className="mt-6 text-center">
           <button
-            onClick={retryMatch}
-            disabled={isLoading}
-            className="px-6 py-2 text-white bg-[#093FB4] rounded hover:bg-[#072c8e] disabled:opacity-50"
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/login';
+            }}
+            className="text-sm text-red-300 underline transition-colors duration-200 hover:text-red-400"
           >
-            {isLoading ? 'Searching...' : '🔁 Retry Match Now'}
+            Logout & Reset
           </button>
         </div>
-      )}
-
-      <div className="mt-10">
-        <PastMatches userId={user._id} />
-      </div>
-
-      {match?.feedback && <MatchFeedbackDisplay feedback={match.feedback} />}
-
-      <div className="mt-6 text-center">
-        <button
-          onClick={() => {
-            localStorage.clear();
-            window.location.href = '/login';
-          }}
-          className="text-sm text-red-600 underline"
-        >
-          Logout & Reset
-        </button>
       </div>
     </div>
   );

@@ -17,26 +17,25 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
   })();
 
   return (
-<div className="flex flex-col p-4 mt-4 bg-white rounded-lg shadow-md h-[80vh] max-w-2xl w-full mx-auto">
-      <div className="flex-shrink-0 mb-4 font-medium text-center text-gray-700">
+    <div className="flex flex-col p-4 mt-4 bg-[#1a1a1a] rounded-lg shadow-md h-[80vh] max-w-2xl w-full mx-auto border border-pink-900/30">
+      <div className="flex-shrink-0 mb-4 font-medium text-center text-pink-400">
         💬 {messages.length}/100 Messages —{" "}
         {isEligibleForVideo ? "🎥 Video unlocked!" : "Keep going!"}
       </div>
 
-      <div className="flex-1 pr-1 space-y-2 overflow-y-auto">
+      {/* Message list with hidden scrollbar */}
+      <div className="flex-1 pr-1 space-y-2 overflow-y-auto hide-scrollbar">
         {messages.map((msg, index) => {
           const isSender = String(msg.senderId) === String(currentUserId);
           return (
             <div
               key={index}
-              className={`max-w-xs p-2 rounded-lg break-words ${
-                isSender
-                  ? "bg-[#093FB4] text-white self-end ml-auto"
-                  : "bg-[#FFD8D8] text-black self-start mr-auto"
+              className={`max-w-xs p-2 rounded-lg break-words bg-[#ffd5e5] text-black ${
+                isSender ? "self-end ml-auto" : "self-start mr-auto"
               }`}
             >
               {msg.text}
-              <div className="text-[10px] text-right mt-1 text-white/70">
+              <div className="text-[10px] text-right mt-1 text-black/50">
                 {new Date(msg.createdAt).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -48,10 +47,10 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex items-center flex-shrink-0 pt-2 mt-4 border-t">
+      <div className="flex items-center flex-shrink-0 pt-2 mt-4 border-t border-pink-900/40">
         <textarea
           rows={1}
-          className="flex-1 p-2 mr-2 overflow-hidden border rounded-md resize-none max-h-40"
+          className="flex-1 p-2 mr-2 text-white bg-[#2d2d2d] border border-pink-700 rounded-md resize-none max-h-40 placeholder-gray-400"
           placeholder="Type your message..."
           value={input}
           onChange={(e) => {
@@ -68,15 +67,15 @@ export default function ChatBox({ messages, input, setInput, sendMessage, curren
         />
         <button
           onClick={sendMessage}
-          className="px-4 py-2 text-white bg-[#ED3500] hover:bg-red-700 rounded-md"
+          className="px-4 py-2 text-white bg-pink-600 rounded-md hover:bg-pink-700"
         >
           Send
         </button>
       </div>
 
       {isEligibleForVideo && (
-        <div className="flex-shrink-0 mt-2 text-center">
-          <p className="font-semibold text-green-600">
+        <div className="flex-shrink-0 mt-3 text-center">
+          <p className="font-semibold text-green-400">
             🎉 You’ve unlocked video calling!
           </p>
           <button className="px-4 py-2 mt-2 text-white bg-purple-600 rounded hover:bg-purple-700">
