@@ -21,55 +21,63 @@ export default function MainRouter() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isPublicRoute = ['/login', '/signup', '/forgot-password', '/reset-password'].some(path =>
-    location.pathname.startsWith(path)
-  );
+  const isPublicRoute = [
+    '/',
+    '/login',
+    '/signup',
+    '/forgot-password',
+    '/reset-password'
+  ].some(path => location.pathname.startsWith(path));
 
   useEffect(() => {
-    if (isPublicRoute) return; // 🔐 Skip protected logic for public routes
+    if (isPublicRoute) return;
 
     const storedUserId = localStorage.getItem('userId');
 
     const fetchUserData = async () => {
       try {
-        if (!storedUserId) return navigate('/login');
-
-        const { data: userData } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/${storedUserId}`);
-        setUser(userData);
-        setUserState(userData.state || 'available');
-
-        socket.emit('join', storedUserId);
-
-        const { data: matchRes } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/match/verify-current`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        });
-
-        if (matchRes.hasActiveMatch) {
-          const currentMatch = {
-            _id: matchRes.match._id,
-            name: matchRes.match.users.find(u => u._id !== storedUserId)?.name,
-            feedback: matchRes.match.feedback,
-          };
-          setMatch(currentMatch);
-          localStorage.setItem('matchId', currentMatch._id);
-          localStorage.setItem('matchName', currentMatch.name);
-
-          const { data: chatHistory } = await axios.get(
-            `${import.meta.env.VITE_BACKEND_URL}/api/chat/messages/${currentMatch._id}`
-          );
-          setMessages(chatHistory);
+        if (!storedUserId && location.pathname !== '/') {
+          return navigate('/login');
         }
 
-        const ob = userData.onboarding || {};
-        const isOnboarded = ob.loveLanguage && ob.attachmentStyle && ob.communicationStyle &&
-          ob.emotionalNeeds && ob.age && ob.values && ob.personalityType && ob.goals;
+        if (storedUserId) {
+          const { data: userData } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/user/${storedUserId}`);
+          setUser(userData);
+          setUserState(userData.state || 'available');
+          socket.emit('join', storedUserId);
 
-        if (!isOnboarded) {
-          navigate('/onboarding');
-        } else if (matchRes.hasActiveMatch) {
-          navigate('/app');
-        } else {
-          navigate('/waiting');
+          const { data: matchRes } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/match/verify-current`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+          });
+
+          if (matchRes.hasActiveMatch) {
+            const currentMatch = {
+              _id: matchRes.match._id,
+              name: matchRes.match.users.find(u => u._id !== storedUserId)?.name,
+              feedback: matchRes.match.feedback
+            };
+            setMatch(currentMatch);
+            localStorage.setItem('matchId', currentMatch._id);
+            localStorage.setItem('matchName', currentMatch.name);
+
+            const { data: chatHistory } = await axios.get(
+              `${import.meta.env.VITE_BACKEND_URL}/api/chat/messages/${currentMatch._id}`
+            );
+            setMessages(chatHistory);
+          }
+
+          const ob = userData.onboarding || {};
+          const isOnboarded =
+            ob.loveLanguage && ob.attachmentStyle && ob.communicationStyle &&
+            ob.emotionalNeeds && ob.age && ob.values && ob.personalityType && ob.goals;
+
+          if (!isOnboarded) {
+            navigate('/onboarding');
+          } else if (matchRes.hasActiveMatch) {
+            navigate('/app');
+          } else {
+            navigate('/waiting');
+          }
         }
       } catch (err) {
         console.error('❌ Failed to fetch user or match:', err);
