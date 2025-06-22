@@ -1,7 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import cherry from '../assets/cherry.jpg'; // ✅ Background image
+import cherry from '../assets/cherry.jpg';
+import DailyMatch from '../assets/DailyMatch.jpg';
+import ExclusiveMatching from '../assets/ExclusiveMatching.png';
+import MeaningfulChats from '../assets/MeaningfulChats.png';
+import ReflectGrow from '../assets/Reflect&Grow.png';
+import ReflectionPause from '../assets/ReflectionPause.png';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -58,7 +63,7 @@ export default function LandingPage() {
           One intentional match a day. No swiping. Just serene, mindful connections.
         </motion.p>
         <motion.button
-          onClick={() => navigate('/login')} // ✅ Updated to login
+          onClick={() => navigate('/login')}
           className="px-8 py-4 mt-8 font-semibold text-white bg-pink-500 rounded-full shadow-lg hover:bg-pink-600 focus:outline-none focus:ring-4 focus:ring-pink-300"
           variants={buttonVariants}
           whileHover="hover"
@@ -84,17 +89,17 @@ export default function LandingPage() {
             {
               title: 'Daily Match',
               desc: 'Receive one curated match under cherry blossom skies.',
-              image: '/cherry-blossom-profile1.jpg',
+              image: DailyMatch,
             },
             {
               title: 'Meaningful Chats',
               desc: 'Connect deeply with video after 100 messages.',
-              image: '/cherry-blossom-profile2.jpg',
+              image: MeaningfulChats,
             },
             {
               title: 'Reflect & Grow',
               desc: 'Pause to reflect with nature’s calm guidance.',
-              image: '/cherry-blossom-profile3.jpg',
+              image: ReflectGrow,
             },
           ].map((step, index) => (
             <motion.div
@@ -131,12 +136,12 @@ export default function LandingPage() {
             {
               title: 'Exclusive Matching',
               desc: 'One match at a time, like a rare blossom.',
-              image: '/cherry-blossom-profile4.jpg',
+              image: ExclusiveMatching,
             },
             {
               title: 'Reflection Pause',
               desc: 'A 24-hour break to bloom with insight.',
-              image: '/cherry-blossom-profile5.jpg',
+              image: ReflectionPause,
             },
           ].map((feature, index) => (
             <motion.div
